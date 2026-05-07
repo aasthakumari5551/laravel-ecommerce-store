@@ -11,6 +11,7 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::all();
+
         return view('products.index', compact('products'));
     }
 
@@ -30,6 +31,40 @@ class ProductController extends Controller
             'stock' => $request->stock,
             'image' => $request->image
         ]);
+
+        return redirect('/products');
+    }
+
+    // Show edit form
+    public function edit($id)
+    {
+        $product = Product::findOrFail($id);
+
+        return view('products.edit', compact('product'));
+    }
+
+    // Update product
+    public function update(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+
+        $product->update([
+            'name' => $request->name,
+            'description' => $request->description,
+            'price' => $request->price,
+            'stock' => $request->stock,
+            'image' => $request->image
+        ]);
+
+        return redirect('/products');
+    }
+
+    // Delete product
+    public function destroy($id)
+    {
+        $product = Product::findOrFail($id);
+
+        $product->delete();
 
         return redirect('/products');
     }
