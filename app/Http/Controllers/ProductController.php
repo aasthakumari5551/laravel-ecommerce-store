@@ -8,12 +8,14 @@ use App\Models\Product;
 class ProductController extends Controller
 {
     // Show all products
-    public function index()
-    {
-        $products = Product::all();
+    public function index(Request $request)
+{
+    $search = $request->search;
 
-        return view('products.index', compact('products'));
-    }
+    $products = Product::where('name', 'LIKE', "%$search%")->get();
+
+    return view('products.index', compact('products'));
+}
 
     // Show add product form
     public function create()
