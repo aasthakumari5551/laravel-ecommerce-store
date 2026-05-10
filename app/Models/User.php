@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\Order;
 
 class User extends Authenticatable
 {
@@ -62,5 +63,10 @@ class User extends Authenticatable
 public function wishlist(): HasOne
 {
     return $this->hasOne(Wishlist::class);
+}
+
+public function orders()
+{
+    return $this->hasMany(Order::class);
 }
 }

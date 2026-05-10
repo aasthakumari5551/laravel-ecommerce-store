@@ -16,7 +16,7 @@ class CheckoutController extends Controller
         private CartService             $cartService,
         private SimulatedPaymentService $paymentService,
     ) {
-        $this->middleware('auth');
+        
     }
 
     // ── 1. Checkout page ──────────────────────────────────────
