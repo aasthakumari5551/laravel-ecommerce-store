@@ -7,6 +7,8 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\WishlistController;
+use App\Http\Controllers\AddressController;
+use App\Http\Controllers\CheckoutController;
 
 // ── Home ───────────────────────────────────────────────────
 
@@ -92,12 +94,59 @@ Route::prefix('wishlist')
             ->name('destroy');
     });
 
-// ── Checkout ───────────────────────────────────────────────
+// ── Checkout + Orders + Addresses ─────────────────────────
 
 Route::middleware('auth')->group(function () {
 
-    Route::get('/checkout', [OrderController::class, 'checkout'])
-        ->name('checkout');
+    // ── Checkout ──────────────────────────────────────────
+
+    Route::prefix('checkout')->name('checkout.')->group(function () {
+
+        Route::get('/', [CheckoutController::class, 'index'])
+            ->name('index');
+
+        Route::post('/initiate', [CheckoutController::class, 'initiate'])
+            ->name('initiate');
+
+        // Demo payment routes
+
+        Route::get('/demo-payment', [CheckoutController::class, 'demoPayment'])
+            ->name('demo-payment');
+
+        Route::post('/demo/success', [CheckoutController::class, 'simulateSuccess'])
+            ->name('demo.success');
+
+        Route::post('/demo/failure', [CheckoutController::class, 'simulateFailure'])
+            ->name('demo.failure');
+    });
+
+    // ── Customer Orders ──────────────────────────────────
+
+    Route::prefix('orders')->name('orders.')->group(function () {
+
+        Route::get('/', [OrderController::class, 'index'])
+            ->name('index');
+
+        Route::get('/{order}', [OrderController::class, 'show'])
+            ->name('show');
+    });
+
+    // ── Addresses ────────────────────────────────────────
+
+    Route::prefix('addresses')->name('addresses.')->group(function () {
+
+        Route::get('/', [AddressController::class, 'index'])
+            ->name('index');
+
+        Route::post('/', [AddressController::class, 'store'])
+            ->name('store');
+
+        Route::put('/{address}', [AddressController::class, 'update'])
+            ->name('update');
+
+        Route::delete('/{address}', [AddressController::class, 'destroy'])
+            ->name('destroy');
+    });
 });
 
 // ── Auth Routes ────────────────────────────────────────────
