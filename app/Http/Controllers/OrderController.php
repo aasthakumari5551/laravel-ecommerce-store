@@ -2,41 +2,46 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Checkout\CancelOrderRequest;
 use App\Models\Order;
-use App\Models\Cart;
-use App\Models\Product;
-use Illuminate\Support\Facades\Auth;
+use App\Services\OrderService;
+use Illuminate\Http\RedirectResponse;
 
 class OrderController extends Controller
 {
-    public function checkout()
+    public function __construct(private OrderService $orderService)
     {
-        $cartItems = Cart::where('user_id', Auth::id())->get();
+        $this->middleware('auth');
+    }
 
-        $total = 0;
+    public function index()
+    {
+        $orders = auth()->user()
+                        ->orders()
+                        ->with(['items'])
+                        ->latest()
+                        ->paginate(10);
 
-        foreach($cartItems as $item)
-        {
-            $total += $item->product->price * $item->quantity;
+        return view('shop.orders.index', compact('orders'));
+    }
 
-            // Reduce stock
-            $product = Product::find($item->product_id);
+    public function show(Order $order)
+    {
+        abort_if($order->user_id !== auth()->id(), 403);
 
-            $product->stock -= $item->quantity;
+        $order->load(['items.product', 'statusHistories.changedBy']);
 
-            $product->save();
+        return view('shop.orders.show', compact('order'));
+    }
+
+    public function cancel(CancelOrderRequest $request, Order $order): RedirectResponse
+    {
+        try {
+            $this->orderService->cancelByCustomer($order);
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['cancel' => $e->getMessage()]);
         }
 
-        // Create order
-        Order::create([
-            'user_id' => Auth::id(),
-            'total_price' => $total
-        ]);
-
-        // Clear cart
-        Cart::where('user_id', Auth::id())->delete();
-
-        return view('orders.success', compact('total'));
+        return back()->with('success', 'Your order has been cancelled.');
     }
 }

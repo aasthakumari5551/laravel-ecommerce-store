@@ -77,12 +77,13 @@ Route::prefix('cart')->name('cart.')->group(function () {
         ->name('clear');
 });
 
-// ── Wishlist (Auth Only) ──────────────────────────────────
+// ── Auth-only Customer Routes ─────────────────────────────
 
-Route::prefix('wishlist')
-    ->name('wishlist.')
-    ->middleware('auth')
-    ->group(function () {
+Route::middleware('auth')->group(function () {
+
+    // ── Wishlist ──────────────────────────────────────────
+
+    Route::prefix('wishlist')->name('wishlist.')->group(function () {
 
         Route::get('/', [WishlistController::class, 'index'])
             ->name('index');
@@ -94,10 +95,6 @@ Route::prefix('wishlist')
             ->name('destroy');
     });
 
-// ── Checkout + Orders + Addresses ─────────────────────────
-
-Route::middleware('auth')->group(function () {
-
     // ── Checkout ──────────────────────────────────────────
 
     Route::prefix('checkout')->name('checkout.')->group(function () {
@@ -107,8 +104,6 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/initiate', [CheckoutController::class, 'initiate'])
             ->name('initiate');
-
-        // Demo payment routes
 
         Route::get('/demo-payment', [CheckoutController::class, 'demoPayment'])
             ->name('demo-payment');
@@ -120,15 +115,18 @@ Route::middleware('auth')->group(function () {
             ->name('demo.failure');
     });
 
-    // ── Customer Orders ──────────────────────────────────
+    // ── Orders (Customer) ─────────────────────────────────
 
     Route::prefix('orders')->name('orders.')->group(function () {
 
         Route::get('/', [OrderController::class, 'index'])
             ->name('index');
 
-        Route::get('/{order}', [OrderController::class, 'show'])
+        Route::get('/{order:uuid}', [OrderController::class, 'show'])
             ->name('show');
+
+        Route::post('/{order:uuid}/cancel', [OrderController::class, 'cancel'])
+            ->name('cancel');
     });
 
     // ── Addresses ────────────────────────────────────────

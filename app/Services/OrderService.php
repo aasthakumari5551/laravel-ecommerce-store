@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Contracts\PaymentGateway;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
-use App\Models\Address;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Models\Product;
@@ -16,45 +15,59 @@ use Illuminate\Support\Str;
 class OrderService
 {
     public function __construct(
-        private CartService    $cartService,
-        private PaymentGateway $gateway,         // injected — Simulated or Real
+        private CheckoutService $checkoutService,
+        private CartService     $cartService,
+        private PaymentGateway  $gateway,
     ) {}
 
-    // ── Step 1: Initiate checkout ─────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // PUBLIC API
+    // ─────────────────────────────────────────────────────────
 
+    /**
+     * Validate cart + address, deduct stock, persist order,
+     * create gateway order. Returns data for payment screen.
+     *
+     * @throws \RuntimeException
+     */
     public function initiate(int $addressId, ?string $notes = null): array
     {
-        $user    = Auth::user();
-        $address = Address::where('user_id', $user->id)->findOrFail($addressId);
-        $cart    = $this->cartService->resolve()->load('items.product');
+        // Delegate all validation to CheckoutService
+        $validated = $this->checkoutService->validate($addressId);
+        $totals    = $this->checkoutService->calculateTotals($validated['subtotal']);
 
-        if ($cart->isEmpty()) {
-            throw new \RuntimeException('Your cart is empty.');
-        }
+        return DB::transaction(function () use ($validated, $totals, $notes) {
+            $cart    = $validated['cart'];
+            $address = $validated['address'];
+            $user    = Auth::user();
 
-        foreach ($cart->items as $item) {
-            $this->assertStock($item->product, $item->quantity);
-        }
-
-        return DB::transaction(function () use ($user, $cart, $address, $notes) {
-
-            // Deduct stock with row-level lock — prevents overselling
+            // ── Lock rows and deduct stock atomically ─────────
             foreach ($cart->items as $item) {
-                Product::where('id', $item->product_id)
-                       ->where('track_inventory', true)
-                       ->lockForUpdate()
-                       ->decrement('stock', $item->quantity);
+                if (! $item->product->track_inventory) {
+                    continue;
+                }
+
+                $affected = Product::where('id', $item->product_id)
+                                   ->where('track_inventory', true)
+                                   ->where('stock', '>=', $item->quantity) // final guard
+                                   ->lockForUpdate()
+                                   ->decrement('stock', $item->quantity);
+
+                // Race condition: another request deducted stock between validate() and lock
+                if ($affected === 0) {
+                    throw new \RuntimeException(
+                        "\"{$item->product->name}\" went out of stock. Please update your cart."
+                    );
+                }
             }
 
-            $subtotal = $cart->subtotal();
-            $shipping = $this->calculateShipping($subtotal);
-            $tax      = $this->calculateTax($subtotal);
-            $total    = $subtotal + $shipping + $tax;
-
+            // ── Create order ──────────────────────────────────
             $order = Order::create([
                 'uuid'                => (string) Str::uuid(),
                 'number'              => $this->generateOrderNumber(),
                 'user_id'             => $user->id,
+
+                // Snapshot address — survives future address edits
                 'shipping_first_name' => $address->first_name,
                 'shipping_last_name'  => $address->last_name,
                 'shipping_phone'      => $address->phone,
@@ -64,53 +77,48 @@ class OrderService
                 'shipping_state'      => $address->state,
                 'shipping_pincode'    => $address->pincode,
                 'shipping_country'    => $address->country,
-                'subtotal'            => $subtotal,
-                'shipping_amount'     => $shipping,
-                'tax_amount'          => $tax,
-                'total'               => $total,
-                'status'              => OrderStatus::Pending,
-                'payment_status'      => PaymentStatus::Pending,
-                'payment_method'      => 'demo_gateway',
-                'notes'               => $notes,
+
+                ...$totals,
+
+                'status'          => OrderStatus::Pending,
+                'payment_status'  => PaymentStatus::Pending,
+                'payment_method'  => 'demo_gateway',
+                'notes'           => $notes,
             ]);
 
-            foreach ($cart->items as $item) {
-                $order->items()->create([
-                    'product_id'   => $item->product_id,
-                    'product_name' => $item->product->name,
-                    'product_sku'  => $item->product->sku,
-                    'quantity'     => $item->quantity,
-                    'unit_price'   => $item->unit_price,
-                    'subtotal'     => $item->lineTotal(),
-                ]);
-            }
+            // ── Snapshot order items ──────────────────────────
+            $this->createOrderItems($order, $cart->items);
 
+            // ── Log initial status ────────────────────────────
             $this->logStatus($order, OrderStatus::Pending, 'Order created — awaiting payment.');
 
-            // Gateway call — works identically for demo or real Razorpay
-            $gatewayOrder = $this->gateway->createOrder($total, $order->number);
-
+            // ── Create gateway order ──────────────────────────
+            $gatewayOrder = $this->gateway->createOrder($totals['total'], $order->number);
             $order->update(['razorpay_order_id' => $gatewayOrder['id']]);
 
             return [
-                'order'         => $order,
+                'order'         => $order->fresh(),
                 'gateway_order' => $gatewayOrder,
                 'public_key'    => $this->gateway->getPublicKey(),
             ];
         });
     }
 
-    // ── Step 2: Verify and confirm ────────────────────────────
-
+    /**
+     * Verify payment signature → mark paid → confirm order → clear cart.
+     *
+     * @throws \RuntimeException on bad signature or order not found
+     */
     public function verifyAndConfirm(
         string $gatewayOrderId,
         string $gatewayPaymentId,
         string $gatewaySignature,
     ): Order {
-        // Throws on bad signature — same contract for demo and real
         $this->gateway->verifySignature($gatewayOrderId, $gatewayPaymentId, $gatewaySignature);
 
-        $order = Order::where('razorpay_order_id', $gatewayOrderId)->firstOrFail();
+        $order = Order::where('razorpay_order_id', $gatewayOrderId)
+                      ->where('payment_status', PaymentStatus::Pending->value)
+                      ->firstOrFail();
 
         return DB::transaction(function () use ($order, $gatewayPaymentId, $gatewaySignature) {
             $order->update([
@@ -122,20 +130,25 @@ class OrderService
             ]);
 
             $this->logStatus($order, OrderStatus::Confirmed, 'Payment verified — order confirmed.');
+
+            // Clear the cart after successful payment
             $this->cartService->clear();
 
-            return $order->fresh();
+            return $order->fresh(['items', 'user']);
         });
     }
 
-    // ── Step 3: Handle payment failure ───────────────────────
-
+    /**
+     * Payment failed or was cancelled — restore stock, cancel order.
+     */
     public function handlePaymentFailure(string $gatewayOrderId): void
     {
-        $order = Order::where('razorpay_order_id', $gatewayOrderId)->first();
+        $order = Order::where('razorpay_order_id', $gatewayOrderId)
+                      ->where('payment_status', PaymentStatus::Pending->value)
+                      ->first();
 
-        if (! $order || $order->payment_status === PaymentStatus::Paid) {
-            return;
+        if (! $order) {
+            return; // Already handled or doesn't exist
         }
 
         DB::transaction(function () use ($order) {
@@ -143,15 +156,53 @@ class OrderService
                 'payment_status' => PaymentStatus::Failed,
                 'status'         => OrderStatus::Cancelled,
             ]);
+
             $this->restoreStock($order);
             $this->logStatus($order, OrderStatus::Cancelled, 'Payment failed — stock restored.');
         });
     }
 
-    // ── Admin: Transition status ──────────────────────────────
-
-    public function transitionStatus(Order $order, OrderStatus $newStatus, ?string $comment = null): Order
+    /**
+     * Customer-initiated cancellation (only allowed from Pending/Confirmed).
+     *
+     * @throws \RuntimeException if order cannot be cancelled
+     */
+    public function cancelByCustomer(Order $order): Order
     {
+        if (! $order->status->canTransitionTo(OrderStatus::Cancelled)) {
+            throw new \RuntimeException(
+                "This order cannot be cancelled at its current stage ({$order->status->label()})."
+            );
+        }
+
+        return DB::transaction(function () use ($order) {
+            $order->update(['status' => OrderStatus::Cancelled]);
+
+            // Restore stock if payment had gone through
+            if ($order->isPaid()) {
+                $this->restoreStock($order);
+            }
+
+            $this->logStatus(
+                $order,
+                OrderStatus::Cancelled,
+                'Cancelled by customer.',
+            );
+
+            return $order->fresh();
+        });
+    }
+
+    /**
+     * Admin-driven status transition — enforces the state machine.
+     *
+     * @throws \RuntimeException on illegal transition
+     */
+    public function transitionStatus(
+        Order $order,
+        OrderStatus $newStatus,
+        ?string $comment = null,
+    ): Order {
         if (! $order->status->canTransitionTo($newStatus)) {
             throw new \RuntimeException(
                 "Cannot transition from [{$order->status->label()}] to [{$newStatus->label()}]."
@@ -165,24 +216,35 @@ class OrderService
                 $this->restoreStock($order);
             }
 
-            $this->logStatus($order, $newStatus, $comment);
+            $this->logStatus($order, $newStatus, $comment, Auth::id());
+
             return $order->fresh();
         });
     }
 
-    // ── Private helpers ───────────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // PRIVATE HELPERS
+    // ─────────────────────────────────────────────────────────
 
-    private function assertStock(Product $product, int $qty): void
+    private function createOrderItems(Order $order, $cartItems): void
     {
-        if ($product->track_inventory && $product->stock < $qty) {
-            throw new \RuntimeException(
-                "\"{$product->name}\" has only {$product->stock} unit(s) in stock."
-            );
+        foreach ($cartItems as $item) {
+            $order->items()->create([
+                'product_id'   => $item->product_id,
+                'product_name' => $item->product->name,  // snapshot
+                'product_sku'  => $item->product->sku,   // snapshot
+                'quantity'     => $item->quantity,
+                'unit_price'   => $item->unit_price,      // price locked at add-to-cart time
+                'subtotal'     => $item->lineTotal(),
+            ]);
         }
     }
 
     private function restoreStock(Order $order): void
     {
+        // Load items if not already loaded
+        $order->loadMissing('items');
+
         foreach ($order->items as $item) {
             Product::where('id', $item->product_id)
                    ->where('track_inventory', true)
@@ -190,31 +252,28 @@ class OrderService
         }
     }
 
-    private function logStatus(Order $order, OrderStatus $status, ?string $comment = null): void
-    {
+    private function logStatus(
+        Order $order,
+        OrderStatus $status,
+        ?string $comment = null,
+        ?int $changedBy = null,
+    ): void {
         OrderStatusHistory::create([
             'order_id'   => $order->id,
             'status'     => $status,
             'comment'    => $comment,
-            'changed_by' => Auth::id(),
+            'changed_by' => $changedBy ?? Auth::id(),
         ]);
     }
 
     private function generateOrderNumber(): string
     {
         $prefix   = 'ORD-' . now()->format('Ymd') . '-';
-        $last     = Order::where('number', 'like', $prefix . '%')->orderByDesc('number')->value('number');
+        $last     = Order::where('number', 'like', $prefix . '%')
+                         ->orderByDesc('number')
+                         ->value('number');
         $sequence = $last ? ((int) substr($last, -4)) + 1 : 1;
+
         return $prefix . str_pad($sequence, 4, '0', STR_PAD_LEFT);
-    }
-
-    private function calculateShipping(float $subtotal): float
-    {
-        return $subtotal >= 999 ? 0.0 : 99.0;
-    }
-
-    private function calculateTax(float $subtotal): float
-    {
-        return round($subtotal * 0.18, 2);
     }
 }
