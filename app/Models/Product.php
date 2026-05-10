@@ -7,12 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class Product extends Model
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+
+class Product extends Model implements HasMedia
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, InteractsWithMedia;
 
     protected $fillable = [
         'uuid',
@@ -58,6 +63,7 @@ class Product extends Model
             if (empty($product->uuid)) {
                 $product->uuid = (string) Str::uuid();
             }
+
             if (empty($product->slug)) {
                 $product->slug = Str::slug($product->name);
             }
@@ -78,7 +84,23 @@ class Product extends Model
 
     public function primaryImage(): HasOne
     {
-        return $this->hasOne(ProductImage::class)->where('is_primary', true);
+        return $this->hasOne(ProductImage::class)
+                    ->where('is_primary', true);
+    }
+
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(CartItem::class);
+    }
+
+    public function wishlistedByUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            User::class,
+            'wishlist_items',
+            'product_id',
+            'wishlist_id'
+        );
     }
 
     // ── Scopes ───────────────────────────────────────────────
@@ -106,7 +128,8 @@ class Product extends Model
 
     public function scopeOrdered($query): void
     {
-        $query->orderBy('sort_order')->orderBy('name');
+        $query->orderBy('sort_order')
+              ->orderBy('name');
     }
 
     // ── Helpers ───────────────────────────────────────────────
@@ -137,11 +160,35 @@ class Product extends Model
 
     public function isOutOfStock(): bool
     {
-        return $this->track_inventory && $this->stock <= 0;
+        return $this->track_inventory
+            && $this->stock <= 0;
     }
 
     public function getRouteKeyName(): string
     {
-        return 'uuid'; // URLs use /products/{uuid} — never expose internal IDs
+        return 'uuid';
+    }
+
+    // ── Spatie Media Library ──────────────────────────────────
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('product-images')
+             ->useDisk('public');
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+             ->width(400)
+             ->height(400)
+             ->sharpen(5)
+             ->nonQueued();
+
+        $this->addMediaConversion('card')
+             ->width(800)
+             ->height(800)
+             ->sharpen(5)
+             ->nonQueued();
     }
 }

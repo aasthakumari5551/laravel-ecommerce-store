@@ -14,7 +14,7 @@ class ProductController extends Controller
 
     $products = Product::where('name', 'LIKE', "%$search%")->get();
 
-    return view('products.index', compact('products'));
+    return view('admin.products.index', compact('products'));
 }
 
     // Show add product form

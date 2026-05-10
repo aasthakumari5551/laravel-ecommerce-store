@@ -2,67 +2,56 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Cart;
-use App\Models\Product;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\Cart\StoreCartItemRequest;
+use App\Http\Requests\Cart\UpdateCartItemRequest;
+use App\Services\CartService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 
 class CartController extends Controller
 {
-    // Add product to cart
-    public function add($id)
-    {
-        Cart::create([
-            'user_id' => Auth::id(),
-            'product_id' => $id,
-            'quantity' => 1
-        ]);
+    public function __construct(private CartService $cartService) {}
 
-        return redirect('/cart');
-    }
-
-    // Show cart items
     public function index()
     {
-        $cartItems = Cart::where('user_id', Auth::id())->get();
-
-        return view('cart.index', compact('cartItems'));
+        $summary = $this->cartService->summary();
+        return view('shop.cart.index', $summary);
     }
 
-    // Increase quantity
-public function increase($id)
-{
-    $cart = Cart::findOrFail($id);
-
-    $cart->quantity += 1;
-
-    $cart->save();
-
-    return redirect('/cart');
-}
-
-// Decrease quantity
-public function decrease($id)
-{
-    $cart = Cart::findOrFail($id);
-
-    if($cart->quantity > 1)
+    public function store(StoreCartItemRequest $request): RedirectResponse
     {
-        $cart->quantity -= 1;
+        try {
+            $this->cartService->add(
+                $request->validated('product_id'),
+                $request->validated('quantity'),
+            );
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['stock' => $e->getMessage()]);
+        }
 
-        $cart->save();
+        return back()->with('success', 'Item added to cart.');
     }
 
-    return redirect('/cart');
-}
+    public function update(UpdateCartItemRequest $request, int $cartItemId): RedirectResponse
+    {
+        try {
+            $this->cartService->update($cartItemId, $request->validated('quantity'));
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['stock' => $e->getMessage()]);
+        }
 
-// Remove item from cart
-public function remove($id)
-{
-    $cart = Cart::findOrFail($id);
+        return back()->with('success', 'Cart updated.');
+    }
 
-    $cart->delete();
+    public function destroy(int $cartItemId): RedirectResponse
+    {
+        $this->cartService->remove($cartItemId);
+        return back()->with('success', 'Item removed from cart.');
+    }
 
-    return redirect('/cart');
-}
+    public function clear(): RedirectResponse
+    {
+        $this->cartService->clear();
+        return back()->with('success', 'Cart cleared.');
+    }
 }

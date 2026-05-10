@@ -5,13 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Cart extends Model
+class Wishlist extends Model
 {
-    protected $fillable = [
-        'session_id',
-        'user_id',
-    ];
+    protected $fillable = ['user_id'];
 
     // ── Relationships ─────────────────────────────────────────
 
@@ -22,35 +20,24 @@ class Cart extends Model
 
     public function items(): HasMany
     {
-        return $this->hasMany(CartItem::class);
+        return $this->hasMany(WishlistItem::class);
     }
 
-    public function itemsWithProducts(): HasMany
+    public function products(): BelongsToMany
     {
-        return $this->hasMany(CartItem::class)->with('product.primaryImage');
+        return $this->belongsToMany(Product::class, 'wishlist_items')
+                    ->withTimestamps();
     }
 
     // ── Helpers ───────────────────────────────────────────────
 
-    public function subtotal(): float
+    public function containsProduct(int $productId): bool
     {
-        return (float) $this->items->sum(
-            fn (CartItem $item) => $item->unit_price * $item->quantity
-        );
+        return $this->products()->where('product_id', $productId)->exists();
     }
 
     public function totalItems(): int
     {
-        return (int) $this->items->sum('quantity');
-    }
-
-    public function isEmpty(): bool
-    {
-        return $this->items->isEmpty();
-    }
-
-    public function containsProduct(int $productId): bool
-    {
-        return $this->items->contains('product_id', $productId);
+        return $this->items()->count();
     }
 }

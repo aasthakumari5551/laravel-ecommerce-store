@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
+use App\Services\CartService;
+
 class AuthenticatedSessionController extends Controller
 {
     /**
@@ -27,6 +29,9 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        // ── Merge guest cart into user cart after login ──
+        app(CartService::class)->mergeGuestCartOnLogin();
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

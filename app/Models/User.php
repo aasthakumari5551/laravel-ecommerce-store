@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
@@ -52,4 +53,14 @@ class User extends Authenticatable
     {
         return $this->hasRole('customer');
     }
+
+    public function cart(): HasOne
+{
+    return $this->hasOne(Cart::class);
+}
+
+public function wishlist(): HasOne
+{
+    return $this->hasOne(Wishlist::class);
+}
 }
