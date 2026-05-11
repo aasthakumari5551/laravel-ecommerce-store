@@ -36,5 +36,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Address::class, AddressPolicy::class);
 
         Gate::policy(Review::class, ReviewPolicy::class);
+
+        \App\Models\Category::observe(
+            \App\Observers\CategoryObserver::class
+        );
     }
 }

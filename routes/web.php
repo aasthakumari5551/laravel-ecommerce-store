@@ -11,6 +11,7 @@ use App\Http\Controllers\AddressController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\Shop\ProductController as ShopProductController;
 
 // ── Home ───────────────────────────────────────────────────
 
@@ -162,6 +163,20 @@ Route::middleware('auth')->prefix('reviews')->name('reviews.')->group(function (
     Route::post('/products/{product:uuid}', [ReviewController::class, 'store'])->name('store');
     Route::patch('/{review}',               [ReviewController::class, 'update'])->name('update');
     Route::delete('/{review}',              [ReviewController::class, 'destroy'])->name('destroy');
+});
+
+// ── Shop product catalog ───────────────────────────────────
+Route::prefix('shop')->name('shop.')->group(function () {
+    Route::get('/products',                [ShopProductController::class, 'index'])->name('products.index');
+    Route::get('/products/{product:uuid}', [ShopProductController::class, 'show'])->name('products.show');
+    Route::get('/products/suggestions',    [ShopProductController::class, 'suggestions'])->name('products.suggestions');
+});
+
+// ── Profile ───────────────────────────────────────────────
+Route::middleware('auth')->prefix('profile')->name('profile.')->group(function () {
+    Route::get('/',                 [ProfileController::class, 'edit'])->name('edit');
+    Route::patch('/',               [ProfileController::class, 'update'])->name('update');
+    Route::patch('/password',       [ProfileController::class, 'updatePassword'])->name('password');
 });
 
 require __DIR__.'/auth.php';

@@ -2,46 +2,106 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\ProfileUpdateRequest;
+use App\Http\Requests\Profile\UpdatePasswordRequest;
+use App\Http\Requests\Profile\UpdateProfileRequest;
+
+use App\Services\ProfileService;
+
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+
 use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        private ProfileService $profileService
+    ) {}
+
     /**
-     * Display the user's profile form.
+     * Display the user's profile page.
      */
     public function edit(Request $request): View
     {
-        return view('profile.edit', [
-            'user' => $request->user(),
+        $user = $request->user()->load([
+            'orders',
+            'reviews',
+        ]);
+
+        $avatarUrl = $this->profileService->avatarUrl($user);
+
+        $orderCount = $user->orders()->count();
+
+        $reviewCount = $user->reviews()->count();
+
+        return view('shop.profile.edit', [
+            'user'        => $user,
+            'avatarUrl'   => $avatarUrl,
+            'orderCount'  => $orderCount,
+            'reviewCount' => $reviewCount,
         ]);
     }
 
     /**
-     * Update the user's profile information.
+     * Update profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
-    {
-        $request->user()->fill($request->validated());
+    public function update(
+        UpdateProfileRequest $request
+    ): RedirectResponse {
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $data = $request->safe()->except('avatar');
+
+        // Upload avatar
+
+        if ($request->hasFile('avatar')) {
+
+            $this->profileService->updateAvatar(
+                auth()->user(),
+                $request->file('avatar')
+            );
         }
 
-        $request->user()->save();
+        // Update profile
 
-        return Redirect::route('profile.edit')->with('status', 'profile-updated');
+        $this->profileService->update(
+            auth()->user(),
+            $data
+        );
+
+        return back()->with(
+            'success',
+            'Profile updated.'
+        );
+    }
+
+    /**
+     * Update account password.
+     */
+    public function updatePassword(
+        UpdatePasswordRequest $request
+    ): RedirectResponse {
+
+        $this->profileService->updatePassword(
+            auth()->user(),
+            $request->validated('password')
+        );
+
+        return back()->with(
+            'success',
+            'Password changed successfully.'
+        );
     }
 
     /**
      * Delete the user's account.
      */
-    public function destroy(Request $request): RedirectResponse
-    {
+    public function destroy(
+        Request $request
+    ): RedirectResponse {
+
         $request->validateWithBag('userDeletion', [
             'password' => ['required', 'current_password'],
         ]);
@@ -53,6 +113,7 @@ class ProfileController extends Controller
         $user->delete();
 
         $request->session()->invalidate();
+
         $request->session()->regenerateToken();
 
         return Redirect::to('/');

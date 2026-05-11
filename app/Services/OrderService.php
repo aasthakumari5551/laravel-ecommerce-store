@@ -12,6 +12,9 @@ use App\Models\Product;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Events\OrderPlaced;
+use App\Events\OrderStatusChanged;
+use App\Services\CacheService;
 
 class OrderService
 {
@@ -197,6 +200,10 @@ class OrderService
 
             $this->couponService->removeFromSession();
 
+            event(new OrderPlaced($order));
+
+            app(CacheService::class)->forgetAnalytics();
+            
             return $order->fresh(['items', 'user']);
         });
     }
@@ -285,9 +292,18 @@ class OrderService
             $comment
         ) {
 
+
+            $previousStatus = $order->status;
+
             $order->update([
                 'status' => $newStatus
             ]);
+
+            event(new OrderStatusChanged(
+                $order,
+                $previousStatus,
+                $newStatus
+            ));
 
             if (
                 $newStatus === OrderStatus::Cancelled

@@ -20,8 +20,9 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
-        $query = Order::with(['user', 'items'])
-                      ->latest();
+        $query = Order::with(['user'])
+              ->withCount('items')
+              ->latest();
 
         // Filter by order status
         if ($request->filled('status')) {

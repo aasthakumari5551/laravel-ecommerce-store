@@ -16,9 +16,13 @@ class ProductController extends Controller
 
     public function index()
     {
-        $products = Product::with(['category', 'primaryImage'])
-                           ->latest()
-                           ->paginate(20);
+        $products = Product::with([
+                    'category',
+                    'primaryImage',
+                ])
+                ->withCount('reviews')
+                ->latest()
+                ->paginate(20);
 
         return view('admin.products.index', compact('products'));
     }
