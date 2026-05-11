@@ -9,6 +9,8 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\CouponController;
+use App\Http\Controllers\ReviewController;
 
 // ── Home ───────────────────────────────────────────────────
 
@@ -148,5 +150,18 @@ Route::middleware('auth')->group(function () {
 });
 
 // ── Auth Routes ────────────────────────────────────────────
+
+// ── Coupons (auth) ────────────────────────────────────────
+Route::middleware('auth')->prefix('coupons')->name('coupons.')->group(function () {
+    Route::post('/apply',  [CouponController::class, 'apply'])->name('apply');
+    Route::post('/remove', [CouponController::class, 'remove'])->name('remove');
+});
+
+// ── Reviews (auth) ────────────────────────────────────────
+Route::middleware('auth')->prefix('reviews')->name('reviews.')->group(function () {
+    Route::post('/products/{product:uuid}', [ReviewController::class, 'store'])->name('store');
+    Route::patch('/{review}',               [ReviewController::class, 'update'])->name('update');
+    Route::delete('/{review}',              [ReviewController::class, 'destroy'])->name('destroy');
+});
 
 require __DIR__.'/auth.php';

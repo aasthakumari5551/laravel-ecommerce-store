@@ -60,6 +60,7 @@ class Product extends Model implements HasMedia
     protected static function booted(): void
     {
         static::creating(function (Product $product) {
+
             if (empty($product->uuid)) {
                 $product->uuid = (string) Str::uuid();
             }
@@ -79,13 +80,14 @@ class Product extends Model implements HasMedia
 
     public function images(): HasMany
     {
-        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+        return $this->hasMany(ProductImage::class)
+            ->orderBy('sort_order');
     }
 
     public function primaryImage(): HasOne
     {
         return $this->hasOne(ProductImage::class)
-                    ->where('is_primary', true);
+            ->where('is_primary', true);
     }
 
     public function cartItems(): HasMany
@@ -101,6 +103,23 @@ class Product extends Model implements HasMedia
             'product_id',
             'wishlist_id'
         );
+    }
+
+    // ── Reviews ──────────────────────────────────────────────
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function approvedReviews(): HasMany
+    {
+        return $this->hasMany(Review::class)
+            ->where(
+                'status',
+                \App\Enums\ReviewStatus::Approved->value
+            )
+            ->latest();
     }
 
     // ── Scopes ───────────────────────────────────────────────
@@ -123,13 +142,13 @@ class Product extends Model implements HasMedia
     public function scopeLowStock($query): void
     {
         $query->whereColumn('stock', '<=', 'low_stock_threshold')
-              ->where('stock', '>', 0);
+            ->where('stock', '>', 0);
     }
 
     public function scopeOrdered($query): void
     {
         $query->orderBy('sort_order')
-              ->orderBy('name');
+            ->orderBy('name');
     }
 
     // ── Helpers ───────────────────────────────────────────────
@@ -147,7 +166,8 @@ class Product extends Model implements HasMedia
         }
 
         return (int) round(
-            (($this->compare_price - $this->price) / $this->compare_price) * 100
+            (($this->compare_price - $this->price)
+                / $this->compare_price) * 100
         );
     }
 
@@ -174,21 +194,21 @@ class Product extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('product-images')
-             ->useDisk('public');
+            ->useDisk('public');
     }
 
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumb')
-             ->width(400)
-             ->height(400)
-             ->sharpen(5)
-             ->nonQueued();
+            ->width(400)
+            ->height(400)
+            ->sharpen(5)
+            ->nonQueued();
 
         $this->addMediaConversion('card')
-             ->width(800)
-             ->height(800)
-             ->sharpen(5)
-             ->nonQueued();
+            ->width(800)
+            ->height(800)
+            ->sharpen(5)
+            ->nonQueued();
     }
 }

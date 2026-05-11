@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Models\Address;
-use App\Models\Cart;
+use App\Models\Coupon;
 use Illuminate\Support\Facades\Auth;
 
 class CheckoutService
 {
-    public function __construct(private CartService $cartService) {}
+    public function __construct(
+        private CartService $cartService,
+        private CouponService $couponService,
+    ) {}
 
     /**
      * Full pre-checkout validation pipeline.
@@ -21,6 +24,7 @@ class CheckoutService
         $user = Auth::user();
 
         // ── 1. Cart must exist and be non-empty ───────────────
+
         $cart = $this->cartService->resolve()->load('items.product');
 
         if ($cart->isEmpty()) {
@@ -28,35 +32,45 @@ class CheckoutService
         }
 
         // ── 2. Address must belong to this user ───────────────
+
         $address = Address::where('user_id', $user->id)
-                          ->find($addressId);
+            ->find($addressId);
 
         if (! $address) {
             throw new \RuntimeException('Selected delivery address is invalid.');
         }
 
         // ── 3. All products must still be active ──────────────
+
         $inactiveItems = $cart->items->filter(
             fn ($item) => ! $item->product->is_active || $item->product->trashed()
         );
 
         if ($inactiveItems->isNotEmpty()) {
-            $names = $inactiveItems->pluck('product.name')->implode(', ');
+
+            $names = $inactiveItems
+                ->pluck('product.name')
+                ->implode(', ');
+
             throw new \RuntimeException(
                 "The following items are no longer available: {$names}. Please remove them from your cart."
             );
         }
 
         // ── 4. Stock check for every item ─────────────────────
+
         $stockErrors = [];
 
         foreach ($cart->items as $item) {
+
             if (! $item->product->track_inventory) {
                 continue;
             }
 
             if ($item->product->stock < $item->quantity) {
+
                 $available = $item->product->stock;
+
                 $stockErrors[] = $available > 0
                     ? "\"{$item->product->name}\": only {$available} left (you have {$item->quantity} in cart)."
                     : "\"{$item->product->name}\" is out of stock.";
@@ -68,6 +82,7 @@ class CheckoutService
         }
 
         // ── 5. Return validated payload ───────────────────────
+
         return [
             'cart'     => $cart,
             'address'  => $address,
@@ -76,28 +91,65 @@ class CheckoutService
     }
 
     /**
-     * Calculate order financials from a validated subtotal.
+     * Calculate totals — coupon-aware.
      */
-    public function calculateTotals(float $subtotal): array
-    {
-        $shipping = $this->shippingRate($subtotal);
-        $tax      = $this->taxRate($subtotal);
+    public function calculateTotals(
+        float $subtotal,
+        ?Coupon $coupon = null
+    ): array {
+
+        $shipping       = $this->shippingRate($subtotal);
+        $tax            = $this->taxRate($subtotal);
+        $discountAmount = 0.0;
+        $couponCode     = null;
+
+        if ($coupon) {
+
+            $breakdown = $this->couponService->breakdown(
+                $coupon,
+                $subtotal,
+                $shipping
+            );
+
+            $discountAmount = $breakdown['discount_amount'];
+
+            // Free shipping coupon
+
+            if ($coupon->discount_type === \App\Enums\DiscountType::FreeShip) {
+                $shipping = 0.0;
+            }
+
+            $couponCode = $coupon->code;
+        }
+
+        $total = max(
+            0,
+            round($subtotal - $discountAmount + $shipping + $tax, 2)
+        );
 
         return [
             'subtotal'        => $subtotal,
+            'discount_amount' => $discountAmount,
             'shipping_amount' => $shipping,
             'tax_amount'      => $tax,
-            'total'           => round($subtotal + $shipping + $tax, 2),
+            'total'           => $total,
+            'coupon_code'     => $couponCode,
         ];
     }
 
+    /**
+     * Shipping logic.
+     */
     private function shippingRate(float $subtotal): float
     {
-        return $subtotal >= 999 ? 0.0 : 99.0; // free shipping above ₹999
+        return $subtotal >= 999 ? 0.0 : 99.0;
     }
 
+    /**
+     * GST calculation.
+     */
     private function taxRate(float $subtotal): float
     {
-        return round($subtotal * 0.18, 2); // 18% GST
+        return round($subtotal * 0.18, 2);
     }
 }
