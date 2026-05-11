@@ -12,6 +12,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Shop\ProductController as ShopProductController;
+use App\Http\Controllers\HomeController;
 
 // ── Home ───────────────────────────────────────────────────
 
@@ -178,5 +179,7 @@ Route::middleware('auth')->prefix('profile')->name('profile.')->group(function (
     Route::patch('/',               [ProfileController::class, 'update'])->name('update');
     Route::patch('/password',       [ProfileController::class, 'updatePassword'])->name('password');
 });
+
+Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
 require __DIR__.'/auth.php';

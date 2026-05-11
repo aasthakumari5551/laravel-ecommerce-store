@@ -40,5 +40,9 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\Category::observe(
             \App\Observers\CategoryObserver::class
         );
+
+        \Illuminate\Pagination\Paginator::defaultView(
+            'components.pagination'
+        );
     }
 }

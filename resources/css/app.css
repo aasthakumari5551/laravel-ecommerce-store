@@ -1,3 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Base tokens ───────────────────────────────────────── */
+@layer base {
+    :root {
+        --color-bg:        #faf9f6;
+        --color-surface:   #ffffff;
+        --color-border:    #e8e2d9;
+        --color-text:      #1a1612;
+        --color-muted:     #6b5c48;
+        --color-accent:    #d97706;
+        --color-accent-lt: #fef3c7;
+        --nav-height:      64px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+        @apply font-sans text-ink-900 antialiased;
+        background-color: var(--color-bg);
+    }
+
+    *:focus-visible {
+        @apply outline-none ring-2 ring-brand-500 ring-offset-2;
+    }
+}
+
+/* ── Reusable component classes ────────────────────────── */
+@layer components {
+
+    /* Buttons */
+    .btn-primary {
+        @apply inline-flex items-center justify-center gap-2
+               bg-brand-600 hover:bg-brand-700 active:bg-brand-800
+               text-white font-medium text-sm
+               px-5 py-2.5 rounded-lg
+               transition-all duration-150
+               shadow-sm hover:shadow-md;
+    }
+
+    .btn-secondary {
+        @apply inline-flex items-center justify-center gap-2
+               bg-white hover:bg-ink-50 active:bg-ink-100
+               text-ink-800 font-medium text-sm
+               px-5 py-2.5 rounded-lg border border-ink-200
+               transition-all duration-150;
+    }
+
+    .btn-ghost {
+        @apply inline-flex items-center justify-center gap-2
+               text-ink-700 hover:text-ink-900 hover:bg-ink-100
+               font-medium text-sm px-3 py-2 rounded-lg
+               transition-all duration-150;
+    }
+
+    /* Cards */
+    .card {
+        @apply bg-white rounded-xl border border-ink-100
+               shadow-card hover:shadow-card-hover
+               transition-shadow duration-200;
+    }
+
+    /* Form inputs */
+    .input {
+        @apply w-full bg-white border border-ink-200
+               rounded-lg px-3 py-2.5 text-sm text-ink-900
+               placeholder:text-ink-400
+               focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent
+               transition-all duration-150;
+    }
+
+    /* Badge */
+    .badge {
+        @apply inline-flex items-center px-2 py-0.5 rounded-full
+               text-xs font-semibold;
+    }
+
+    /* Product card stars */
+    .stars {
+        @apply flex items-center gap-0.5;
+    }
+
+    /* Section heading */
+    .section-title {
+        @apply font-display text-2xl sm:text-3xl text-ink-900 leading-tight;
+    }
+
+    /* Skeleton loader */
+    .skeleton {
+        @apply bg-ink-100 rounded animate-pulse;
+    }
+}
+
+/* ── Navbar glass effect ────────────────────────────────── */
+.nav-glass {
+    background: rgba(250, 249, 246, 0.92);
+    backdrop-filter: blur(12px) saturate(1.4);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    border-bottom: 1px solid rgba(232, 226, 217, 0.7);
+}
+
+/* ── Scrollbar styling ──────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: #c5bba8;
+    border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: #a8987f; }
+
+/* ── Animate on scroll utility ─────────────────────────── */
+[data-aos] { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
+[data-aos].aos-animate { opacity: 1; transform: translateY(0); }
