@@ -25,14 +25,11 @@
            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
 
         {{-- Logo --}}
-        <div class="flex items-center gap-3 px-6 py-5 border-b border-white/10">
-            <div class="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3z"/>
-                </svg>
-            </div>
-            <span class="font-display text-lg text-white">Admin Panel</span>
-        </div>
+        {{-- Replace the existing logo div in admin.blade.php sidebar header --}}
+<div class="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+    <x-logo size="sm" variant="white" />
+    <span class="text-white/40 text-xs border-l border-white/20 pl-3 ml-1">Admin</span>
+</div>
 
         {{-- Nav --}}
         <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
