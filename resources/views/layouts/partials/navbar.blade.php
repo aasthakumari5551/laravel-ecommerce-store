@@ -67,32 +67,89 @@
 
                     {{-- Autocomplete dropdown --}}
                     <div x-show="open && results.length > 0"
-                         x-transition:enter="transition ease-out duration-150"
-                         x-transition:enter-start="opacity-0 scale-98 -translate-y-1"
-                         class="absolute top-full left-0 right-0 mt-2 bg-white border border-ink-100
-                                rounded-2xl shadow-xl overflow-hidden z-50 py-1.5">
-                        <template x-for="item in results" :key="item.uuid">
-                            <a :href="'/shop/products/' + item.uuid"
-                               class="flex items-center justify-between px-4 py-2.5
-                                      hover:bg-ink-50 transition-colors group">
-                                <div class="flex items-center gap-3 min-w-0">
-                                    <div class="w-1.5 h-1.5 bg-brand-400 rounded-full
-                                                flex-shrink-0 opacity-0 group-hover:opacity-100
-                                                transition-opacity"></div>
-                                    <span class="text-sm text-ink-800 truncate" x-text="item.name"></span>
-                                </div>
-                                <span class="text-xs font-semibold text-ink-500 font-mono flex-shrink-0 ml-4"
-                                      x-text="'₹' + parseFloat(item.price).toLocaleString('en-IN')">
-                                </span>
-                            </a>
-                        </template>
-                        <div class="px-4 py-2 border-t border-ink-50 mt-1">
-                            <button @click="submitSearch()"
-                                    class="text-xs text-brand-600 hover:text-brand-700 font-medium">
-                                See all results for "<span x-text="query"></span>" →
-                            </button>
-                        </div>
-                    </div>
+     @click.outside="open = false"
+     x-transition:enter="transition ease-out duration-150"
+     x-transition:enter-start="opacity-0 scale-98 -translate-y-1"
+     class="absolute top-full left-0 right-0 mt-2 bg-white border border-ink-100
+            rounded-2xl shadow-xl overflow-hidden z-50">
+
+    {{-- Label --}}
+    <div class="px-4 py-2 border-b border-ink-50 flex items-center justify-between">
+
+        <p class="text-[11px] font-semibold uppercase tracking-widest text-ink-400">
+
+            <span x-show="isTrending">
+                🔥 Trending
+            </span>
+
+            <span x-show="!isTrending">
+                Results
+            </span>
+        </p>
+
+        <div x-show="loading"
+             class="w-3 h-3 border-2 border-brand-500 border-t-transparent
+                    rounded-full animate-spin">
+        </div>
+    </div>
+
+    <template x-for="item in results" :key="item.uuid">
+
+        <a :href="'/shop/products/' + item.uuid"
+           class="flex items-center justify-between px-4 py-2.5
+                  hover:bg-ink-50 transition-colors group
+                  border-b border-ink-50 last:border-0">
+
+            <div class="flex items-center gap-2.5 min-w-0">
+
+                <span class="w-1.5 h-1.5 bg-brand-400 rounded-full
+                             flex-shrink-0 opacity-0
+                             group-hover:opacity-100 transition-opacity">
+                </span>
+
+                <div class="min-w-0">
+
+                    <p class="text-sm text-ink-800 truncate"
+                       x-text="item.name">
+                    </p>
+
+                    <p class="text-[11px] text-ink-400 truncate"
+                       x-text="item.brand || ''">
+                    </p>
+                </div>
+            </div>
+
+            <span class="text-xs font-semibold text-ink-500
+                         font-mono flex-shrink-0 ml-4"
+                  x-text="'₹' + parseFloat(item.price).toLocaleString('en-IN')">
+            </span>
+        </a>
+
+    </template>
+
+    <div class="px-4 py-2.5 bg-ink-50/50">
+
+        <button @click="submitSearch()"
+                class="text-xs text-brand-600 hover:text-brand-700
+                       font-semibold flex items-center gap-1">
+
+            <svg class="w-3 h-3"
+                 fill="none"
+                 stroke="currentColor"
+                 viewBox="0 0 24 24">
+
+                <path stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2.5"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+            </svg>
+
+            Search for "
+            <span x-text="query || 'trending'"></span>
+            "
+        </button>
+    </div>
+</div>
                 </div>
             </div>
 
@@ -436,6 +493,7 @@ function navbar() {
     return {
         mobileOpen: false,
         searchOpen: false,
+
         closeAll() {
             this.mobileOpen = false;
             this.searchOpen = false;
@@ -448,24 +506,93 @@ function searchBar() {
         query: '',
         results: [],
         open: false,
-        async search() {
+        isTrending: false,
+        loading: false,
+        _trending: [],
+
+        async init() {
+
+            // Preload trending products
+
+            try {
+
+                const res = await fetch(
+                    '/shop/products/suggestions?q=',
+                    {
+                        headers: {
+                            Accept: 'application/json'
+                        }
+                    }
+                );
+
+                this._trending = await res.json();
+
+            } catch {
+
+                this._trending = [];
+            }
+        },
+
+        async onFocus() {
+
             if (this.query.length < 2) {
-                this.results = [];
-                this.open = false;
+
+                this.results = this._trending || [];
+
+                this.isTrending = true;
+
+                this.open = this.results.length > 0;
+            }
+        },
+
+        async search() {
+
+            if (this.query.length < 2) {
+
+                this.results = this._trending || [];
+
+                this.isTrending = true;
+
+                this.open = this.results.length > 0;
+
                 return;
             }
+
+            this.isTrending = false;
+
+            this.loading = true;
+
             try {
+
                 const res = await fetch(
                     `/shop/products/suggestions?q=${encodeURIComponent(this.query)}`,
-                    { headers: { 'Accept': 'application/json' } }
+                    {
+                        headers: {
+                            Accept: 'application/json'
+                        }
+                    }
                 );
+
                 this.results = await res.json();
-                this.open = this.results.length > 0;
-            } catch { this.results = []; }
+
+                this.open = true;
+
+            } catch {
+
+                this.results = [];
+
+            } finally {
+
+                this.loading = false;
+            }
         },
+
         submitSearch() {
+
             if (this.query.trim()) {
-                window.location.href = `/shop/products?q=${encodeURIComponent(this.query)}`;
+
+                window.location.href =
+                    `/shop/products?q=${encodeURIComponent(this.query.trim())}`;
             }
         }
     }

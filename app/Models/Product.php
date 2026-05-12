@@ -24,6 +24,7 @@ class Product extends Model implements HasMedia
         'category_id',
         'name',
         'slug',
+        'brand',
         'sku',
         'short_description',
         'description',
@@ -35,6 +36,7 @@ class Product extends Model implements HasMedia
         'track_inventory',
         'is_active',
         'is_featured',
+        'tags',
         'meta_title',
         'meta_description',
         'sort_order',
@@ -52,6 +54,7 @@ class Product extends Model implements HasMedia
             'is_active'           => 'boolean',
             'is_featured'         => 'boolean',
             'sort_order'          => 'integer',
+            'tags'                => 'array',
         ];
     }
 
@@ -149,6 +152,16 @@ class Product extends Model implements HasMedia
     {
         $query->orderBy('sort_order')
             ->orderBy('name');
+    }
+
+    public function scopeByTag($query, string $tag): void
+    {
+        $query->whereJsonContains('tags', $tag);
+    }
+
+    public function scopeByBrand($query, string $brand): void
+    {
+        $query->where('brand', 'like', "%{$brand}%");
     }
 
     // ── Helpers ───────────────────────────────────────────────
