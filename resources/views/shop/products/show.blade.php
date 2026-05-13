@@ -151,20 +151,80 @@
             @endif
 
             {{-- Stock status --}}
-            <div class="flex items-center gap-2 mb-6">
-                @if($product->isOutOfStock())
-                    <span class="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>
-                    <span class="text-sm text-red-600 font-medium">Out of Stock</span>
-                @elseif($product->isLowStock())
-                    <span class="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 animate-pulse"></span>
-                    <span class="text-sm text-orange-600 font-medium">
-                        Only {{ $product->stock }} left — order soon
-                    </span>
-                @else
-                    <span class="w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
-                    <span class="text-sm text-green-700 font-medium">In Stock</span>
-                @endif
+<div class="flex items-center gap-2 mb-3">
+    @if($product->isOutOfStock())
+        <span class="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>
+        <span class="text-sm text-red-600 font-medium">Out of Stock</span>
+    @elseif($product->isLowStock())
+        <span class="w-2 h-2 rounded-full bg-orange-400 animate-pulse flex-shrink-0"></span>
+        <span class="text-sm text-orange-600 font-medium">
+            Only {{ $product->stock }} left — order soon!
+        </span>
+    @elseif($product->stock <= 50)
+        <span class="w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
+        <span class="text-sm text-green-700 font-medium">
+            In Stock — {{ $product->stock }} units available
+        </span>
+    @else
+        <span class="w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
+        <span class="text-sm text-green-700 font-medium">In Stock</span>
+    @endif
+</div>
+
+{{-- Stock progress bar (urgency) --}}
+@if(!$product->isOutOfStock() && $product->stock <= 50 && $product->track_inventory)
+    <div class="mb-4">
+        <div class="w-full bg-ink-100 rounded-full h-1.5 overflow-hidden">
+            <div class="h-1.5 rounded-full transition-all
+                        {{ $product->stock <= 10 ? 'bg-red-500' : 'bg-green-500' }}"
+                 style="width:{{ min(100, ($product->stock / 50) * 100) }}%">
             </div>
+        </div>
+        @if($product->stock <= 10)
+            <p class="text-xs text-red-500 mt-1 font-medium">
+                🔥 Selling fast — only {{ $product->stock }} remaining
+            </p>
+        @endif
+    </div>
+@endif
+
+{{-- Delivery estimate --}}
+<div class="bg-ink-50 rounded-xl p-4 mb-5 space-y-2.5 border border-ink-100">
+    <div class="flex items-start gap-3">
+        <svg class="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" fill="none"
+             stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/>
+        </svg>
+        <div>
+            <p class="text-sm font-semibold text-ink-900">
+                Free Delivery by {{ $delivery['standard'] }}
+            </p>
+            <p class="text-xs text-ink-500 mt-0.5">{{ $delivery['order_by'] }}</p>
+        </div>
+    </div>
+    <div class="flex items-start gap-3">
+        <svg class="w-4 h-4 text-brand-600 flex-shrink-0 mt-0.5" fill="none"
+             stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        <div>
+            <p class="text-sm font-semibold text-ink-900">
+                Express Delivery by {{ $delivery['express'] }}
+            </p>
+            <p class="text-xs text-ink-500 mt-0.5">Premium shipping available at checkout</p>
+        </div>
+    </div>
+    <div class="flex items-start gap-3">
+        <svg class="w-4 h-4 text-ink-400 flex-shrink-0 mt-0.5" fill="none"
+             stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <p class="text-xs text-ink-500">30-day hassle-free returns & exchanges</p>
+    </div>
+</div>
 
             {{-- ── STICKY ADD TO CART (desktop inline, mobile sticky bar) ── --}}
             @unless($product->isOutOfStock())
@@ -431,25 +491,69 @@
         @endif
     </div>
 
-    {{-- ══════════════════════════════════════════════════
-         RELATED PRODUCTS
-    ══════════════════════════════════════════════════ --}}
-    @if($related->isNotEmpty())
-        <div class="mt-14">
-            <x-section-header
-                title="You Might Also Like"
-                :link="route('shop.products.index', ['category' => $product->category?->slug])"
-            />
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                @foreach($related as $i => $rel)
-                    <div data-aos style="animation-delay:{{ $i * 0.07 }}s">
-                        <x-product-card :product="$rel" />
-                    </div>
-                @endforeach
-            </div>
+    {{-- ═══ CUSTOMERS ALSO BOUGHT ═══ --}}
+@if($alsoOrdered->isNotEmpty())
+
+    <div class="mt-12">
+
+        <x-product-carousel
+            :products="$alsoOrdered"
+            title="Customers Also Bought"
+            subtitle="Frequently ordered together"
+            id="carousel-also"
+        />
+
+    </div>
+
+@endif
+
+
+{{-- ═══ RELATED PRODUCTS ═══ --}}
+@if($related->isNotEmpty())
+
+    <div class="mt-10">
+
+        <x-section-header
+            title="More from {{ $product->category?->name ?? 'This Category' }}"
+            :link="route(
+                'shop.products.index',
+                ['category' => $product->category?->slug]
+            )"
+        />
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+
+            @foreach($related->take(4) as $i => $rel)
+
+                <div data-aos
+                     style="animation-delay:{{ $i * 0.07 }}s">
+
+                    <x-product-card :product="$rel" />
+
+                </div>
+
+            @endforeach
+
         </div>
-    @endif
-</div>
+    </div>
+
+@endif
+
+
+{{-- ═══ RECENTLY VIEWED ═══ --}}
+@if($recentlyViewed->isNotEmpty())
+
+    <div class="mt-10">
+
+        <x-product-carousel
+            :products="$recentlyViewed"
+            title="Recently Viewed"
+            id="carousel-recent"
+        />
+
+    </div>
+
+@endif
 
 {{-- ── Mobile sticky add-to-cart bar ──────────────────── --}}
 @unless($product->isOutOfStock())

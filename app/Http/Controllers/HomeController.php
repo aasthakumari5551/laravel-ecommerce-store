@@ -2,41 +2,65 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
-use App\Services\AnalyticsService;
+use App\Models\Product;
 use App\Services\CacheService;
+use App\Services\RecommendationService;
 
 class HomeController extends Controller
 {
     public function __construct(
-        private CacheService    $cache,
+        private CacheService $cache,
+        private RecommendationService $rec,
     ) {}
 
     public function index()
     {
-        $categories      = $this->cache->categories();
-        $featuredProducts = $this->cache->featuredProducts();
+        $categories = $this->cache->categories();
 
-        // Latest 8 active products
-        $latestProducts  = \App\Models\Product::active()
-                            ->inStock()
-                            ->with(['primaryImage', 'category'])
-                            ->latest()
-                            ->limit(8)
-                            ->get();
+        $featuredProducts = $this->cache
+            ->featuredProducts();
 
-        // Top-rated 4
-        $topRated        = \App\Models\Product::active()
-                            ->inStock()
-                            ->with(['primaryImage'])
-                            ->where('review_count', '>', 0)
-                            ->orderByDesc('avg_rating')
-                            ->limit(4)
-                            ->get();
+        $trending = $this->rec
+            ->trending(10);
+
+        $flashSale = $this->rec
+            ->flashSale(8);
+
+        $popularBrands = $this->rec
+            ->popularBrands(8);
+
+        $featuredCollections = $this->rec
+            ->featuredCollections();
+
+        // Latest products
+
+        $latestProducts = Product::active()
+            ->inStock()
+            ->with([
+                'primaryImage',
+                'category',
+            ])
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        // Top-rated products
+
+        $topRated = Product::active()
+            ->inStock()
+            ->with(['primaryImage'])
+            ->where('review_count', '>', 0)
+            ->orderByDesc('avg_rating')
+            ->limit(4)
+            ->get();
 
         return view('home', compact(
             'categories',
             'featuredProducts',
+            'trending',
+            'flashSale',
+            'popularBrands',
+            'featuredCollections',
             'latestProducts',
             'topRated',
         ));
