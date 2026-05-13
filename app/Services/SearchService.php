@@ -5,11 +5,21 @@ namespace App\Services;
 use App\Models\Product;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class SearchService
 {
     private const PER_PAGE     = 16;
     private const SORT_OPTIONS = ['price_asc','price_desc','newest','rating','popular'];
+
+    // Common typo corrections
+    private const CORRECTIONS = [
+        'iphon'  => 'iphone',  'samsng'  => 'samsung', 'headfone' => 'headphone',
+        'earfone'=> 'earphone','labtop'  => 'laptop',  'mobil'    => 'mobile',
+        'tshirt' => 't-shirt', 'jean'    => 'jeans',   'perfum'   => 'perfume',
+        'jewlery'=> 'jewelry', 'sandal'  => 'sandals', 'sneker'   => 'sneaker',
+        'wotch'  => 'watch',   'sunglas' => 'sunglasses',
+    ];
 
     public function products(array $filters): LengthAwarePaginator
     {
@@ -18,61 +28,62 @@ class SearchService
             ->with(['primaryImage', 'category'])
             ->withCount(['reviews as approved_review_count' => fn ($q) => $q->approved()]);
 
-        // ── Full-text search across name, brand, short_description, tags ──
         if (! empty($filters['q'])) {
-            $raw = trim($filters['q']);
+            $raw      = trim($filters['q']);
+            $corrected = $this->correct($raw);
+            $tokens   = array_filter(
+                array_unique(array_merge(
+                    explode(' ', $raw),
+                    explode(' ', $corrected),
+                )),
+                fn ($t) => strlen($t) >= 2
+            );
 
-            // Split into individual tokens for broader matching
-            $tokens = array_filter(explode(' ', $raw));
+            $query->where(function ($q) use ($raw, $corrected, $tokens) {
+                $q->where('name',              'like', "%{$raw}%")
+                  ->orWhere('brand',            'like', "%{$raw}%")
+                  ->orWhere('short_description','like', "%{$raw}%")
+                  ->orWhere('sku',              'like', "%{$raw}%")
+                  ->orWhereHas('category',  fn ($cq) =>
+                        $cq->where('name', 'like', "%{$raw}%"));
 
-            $query->where(function ($q) use ($raw, $tokens) {
-                // Exact phrase in name (highest relevance — handled via orderByRaw below)
-                $q->where('name', 'like', "%{$raw}%")
-                  ->orWhere('brand', 'like', "%{$raw}%")
-                  ->orWhere('short_description', 'like', "%{$raw}%")
-                  ->orWhere('sku', 'like', "%{$raw}%")
-                  ->orWhereHas('category', fn ($cq) =>
-                        $cq->where('name', 'like', "%{$raw}%")
-                  );
+                if ($corrected !== $raw) {
+                    $q->orWhere('name',  'like', "%{$corrected}%")
+                      ->orWhere('brand', 'like', "%{$corrected}%");
+                }
 
-                // Token-level matching for multi-word queries
-                foreach ($tokens as $token) {
-                    if (strlen($token) >= 3) {
-                        $q->orWhere('name',              'like', "%{$token}%")
-                          ->orWhere('brand',             'like', "%{$token}%")
-                          ->orWhere('short_description', 'like', "%{$token}%");
-                    }
+                foreach ($tokens as $t) {
+                    $q->orWhere('name',  'like', "%{$t}%")
+                      ->orWhere('brand', 'like', "%{$t}%");
                 }
             });
 
-            // Boost: exact name matches first
+            // Relevance ordering
             $query->orderByRaw(
-                "CASE WHEN name LIKE ? THEN 0
-                       WHEN brand LIKE ? THEN 1
-                       ELSE 2 END",
-                ["%{$raw}%", "%{$raw}%"]
+                'CASE
+                    WHEN name  LIKE ? THEN 0
+                    WHEN brand LIKE ? THEN 1
+                    WHEN name  LIKE ? THEN 2
+                    ELSE 3
+                 END',
+                ["%{$raw}%", "%{$raw}%", "%{$corrected}%"]
             );
         }
 
-        // ── Category (slug or id) ──
         if (! empty($filters['category'])) {
-            $query->whereHas('category', function ($q) use ($filters) {
+            $query->whereHas('category', fn ($q) =>
                 $q->where('slug', $filters['category'])
-                  ->orWhere('id',   $filters['category']);
-            });
+                  ->orWhere('id',  $filters['category']));
         }
 
-        // ── Brand ──
         if (! empty($filters['brand'])) {
             $query->where('brand', 'like', "%{$filters['brand']}%");
         }
 
-        // ── Tag ──
         if (! empty($filters['tag'])) {
             $query->whereJsonContains('tags', $filters['tag']);
         }
 
-        // ── Price range ──
         if (isset($filters['min_price']) && is_numeric($filters['min_price'])) {
             $query->where('price', '>=', $filters['min_price']);
         }
@@ -80,26 +91,22 @@ class SearchService
             $query->where('price', '<=', $filters['max_price']);
         }
 
-        // ── Rating ──
-        if (! empty($filters['min_rating']) && is_numeric($filters['min_rating'])) {
+        if (! empty($filters['min_rating'])) {
             $query->where('avg_rating', '>=', $filters['min_rating']);
         }
 
-        // ── Stock ──
         if (! empty($filters['in_stock'])) {
             $query->inStock();
         }
 
-        // ── Featured ──
         if (! empty($filters['featured'])) {
             $query->featured();
         }
 
-        // ── Sort (only add if no search relevance ordering) ──
-        $sort = in_array($filters['sort'] ?? '', self::SORT_OPTIONS)
-            ? $filters['sort'] : 'newest';
-
         if (empty($filters['q'])) {
+            $sort = in_array($filters['sort'] ?? '', self::SORT_OPTIONS)
+                ? $filters['sort'] : 'newest';
+
             match($sort) {
                 'price_asc'  => $query->orderBy('price'),
                 'price_desc' => $query->orderByDesc('price'),
@@ -108,98 +115,116 @@ class SearchService
                 default      => $query->orderByDesc('created_at'),
             };
         } else {
-            // After relevance ORDER BY, secondary sort by rating
             $query->orderByDesc('avg_rating');
         }
 
         return $query->paginate(self::PER_PAGE)->withQueryString();
     }
 
-    /**
-     * Autocomplete: searches name + brand + category name.
-     * Returns max 8 results, cached 10 min per query.
-     */
     public function suggestions(string $term): Collection
     {
         if (strlen(trim($term)) < 2) {
             return collect();
         }
 
-        $key = 'search_suggest_' . md5(strtolower(trim($term)));
+        $corrected = $this->correct($term);
+        $key       = 'search_suggest_' . md5(strtolower(trim($term)));
 
-        return cache()->remember($key, now()->addMinutes(10), function () use ($term) {
+        return cache()->remember($key, now()->addMinutes(10), function () use ($term, $corrected) {
             return Product::active()
-                ->where(function ($q) use ($term) {
+                ->where(function ($q) use ($term, $corrected) {
                     $q->where('name',  'like', "%{$term}%")
-                      ->orWhere('brand', 'like', "%{$term}%")
+                      ->orWhere('brand','like', "%{$term}%")
                       ->orWhereHas('category', fn ($cq) =>
-                            $cq->where('name', 'like', "%{$term}%")
-                      );
+                            $cq->where('name', 'like', "%{$term}%"));
+
+                    if ($corrected !== $term) {
+                        $q->orWhere('name',  'like', "%{$corrected}%")
+                          ->orWhere('brand', 'like', "%{$corrected}%");
+                    }
                 })
                 ->orderByDesc('review_count')
                 ->limit(8)
-                ->get(['uuid', 'name', 'brand', 'price', 'slug'])
+                ->get(['uuid','name','brand','price','slug'])
                 ->map(fn ($p) => [
-                    'uuid'  => $p->uuid,
-                    'name'  => $p->name,
-                    'brand' => $p->brand,
-                    'price' => $p->price,
-                    'slug'  => $p->slug,
+                    'uuid'      => $p->uuid,
+                    'name'      => $p->name,
+                    'brand'     => $p->brand,
+                    'price'     => $p->price,
+                    'corrected' => $corrected !== $term ? $corrected : null,
                 ]);
         });
     }
 
     /**
-     * Trending fallback: shown when search bar is focused but empty.
+     * Trending search terms from order items + tag frequency.
      */
-    public function trending(int $limit = 6): Collection
+    public function trendingKeywords(int $limit = 8): array
     {
-        return cache()->remember('search_trending', now()->addMinutes(30), function () use ($limit) {
-            return Product::active()
-                ->inStock()
-                ->whereJsonContains('tags', 'trending')
-                ->orderByDesc('review_count')
+        return cache()->remember('trending_keywords', now()->addHour(), function () use ($limit) {
+            $fromOrders = DB::table('order_items')
+                ->join('products', 'products.id', '=', 'order_items.product_id')
+                ->whereNotNull('products.brand')
+                ->select('products.brand as term', DB::raw('COUNT(*) as freq'))
+                ->groupBy('products.brand')
+                ->orderByDesc('freq')
                 ->limit($limit)
-                ->get(['uuid', 'name', 'brand', 'price', 'avg_rating']);
+                ->pluck('term')
+                ->toArray();
+
+            $fallback = ['Smartphones', 'Running Shoes', 'Skincare', 'Laptops',
+                         'Headphones', 'Kurta', 'Watches', 'Yoga Mat'];
+
+            return array_slice(array_unique(array_merge($fromOrders, $fallback)), 0, $limit);
         });
     }
 
     /**
-     * Price range for filter slider UI.
+     * Did-you-mean correction for a raw query string.
      */
+    public function didYouMean(string $raw): ?string
+    {
+        $corrected = $this->correct($raw);
+        return $corrected !== $raw ? $corrected : null;
+    }
+
+    public function trending(int $limit = 10): Collection
+    {
+        return cache()->remember('rec_trending', now()->addMinutes(30), function () use ($limit) {
+            return Product::active()->inStock()
+                ->whereJsonContains('tags', 'trending')
+                ->with(['primaryImage', 'category'])
+                ->orderByDesc('review_count')
+                ->limit($limit)
+                ->get();
+        });
+    }
+
     public function priceRange(?string $categorySlug = null): array
     {
         $q = Product::active();
-
         if ($categorySlug) {
-            $q->whereHas('category', fn ($cq) =>
-                $cq->where('slug', $categorySlug)
-            );
+            $q->whereHas('category', fn ($cq) => $cq->where('slug', $categorySlug));
         }
-
         $range = $q->selectRaw('MIN(price) as min, MAX(price) as max')->first();
-
-        return [
-            'min' => (float) ($range->min ?? 0),
-            'max' => (float) ($range->max ?? 200000),
-        ];
+        return ['min' => (float) ($range->min ?? 0), 'max' => (float) ($range->max ?? 200000)];
     }
 
-    /**
-     * Distinct brands for filter panel.
-     */
     public function brands(?string $categorySlug = null): Collection
     {
         $q = Product::active()->whereNotNull('brand');
-
         if ($categorySlug) {
-            $q->whereHas('category', fn ($cq) =>
-                $cq->where('slug', $categorySlug)
-            );
+            $q->whereHas('category', fn ($cq) => $cq->where('slug', $categorySlug));
         }
+        return $q->distinct()->orderBy('brand')->pluck('brand');
+    }
 
-        return $q->distinct()
-                 ->orderBy('brand')
-                 ->pluck('brand');
+    // ── Private ───────────────────────────────────────────
+
+    private function correct(string $term): string
+    {
+        $words = explode(' ', strtolower($term));
+        $fixed = array_map(fn ($w) => self::CORRECTIONS[$w] ?? $w, $words);
+        return implode(' ', $fixed);
     }
 }

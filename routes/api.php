@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\OrderController as ApiOrderController;
 use App\Http\Controllers\Api\ProductController as ApiProductController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
 
@@ -41,5 +42,26 @@ Route::middleware('web')->group(function () {
             'subtotal'    => $summary['subtotal'],
             'total_items' => $summary['total_items'],
         ]);
+    });
+});
+
+Route::middleware(['web', 'auth'])->prefix('notifications')->group(function () {
+
+    Route::get('/', function () {
+        $user = Auth::user();
+        return response()->json([
+            'notifications' => $user->notifications()->latest()->limit(15)->get(),
+            'unread'        => $user->unreadNotifications()->count(),
+        ]);
+    });
+
+    Route::post('/{id}/read', function (string $id) {
+        Auth::user()->notifications()->where('id', $id)->first()?->markAsRead();
+        return response()->json(['ok' => true]);
+    });
+
+    Route::post('/read-all', function () {
+        Auth::user()->unreadNotifications->markAsRead();
+        return response()->json(['ok' => true]);
     });
 });

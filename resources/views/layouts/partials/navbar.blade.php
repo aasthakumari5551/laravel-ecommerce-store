@@ -186,63 +186,67 @@
                 @endauth
 
                 {{-- Cart --}}
-                @php
-                    $cartCount = auth()->check()
-                        ? (auth()->user()->cart?->totalItems() ?? 0)
-                        : 0;
-                @endphp
-                {{-- Replace existing cart <a> tag --}}
+@php
+    $cartCount = auth()->check()
+        ? (auth()->user()->cart?->totalItems() ?? 0)
+        : 0;
+@endphp
+
 <button data-open-cart
-        class="relative flex items-center gap-2 btn-ghost px-3 py-2.5 ml-0.5"
+        class="relative flex items-center gap-2
+               btn-ghost px-3 py-2.5 ml-0.5"
         title="Cart">
+
     <div class="relative">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+
+        <svg class="w-5 h-5"
+             fill="none"
+             stroke="currentColor"
+             viewBox="0 0 24 24">
+
+            <path stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
                   d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
         </svg>
-        @if($cartCount > 0)
-            <span class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-brand-600
-                         text-white text-[9px] font-bold rounded-full flex
-                         items-center justify-center leading-none"
-                  data-cart-count="{{ $cartCount }}">
-                {{ min($cartCount, 9) }}
-            </span>
-        @endif
-    </div>
-    <span class="hidden sm:block text-sm font-medium text-ink-700 leading-none">
-        Cart
-        @if($cartCount > 0)
-            <span class="block text-xs text-brand-600 font-semibold mt-0.5">
-                {{ $cartCount }} item{{ $cartCount !== 1 ? 's' : '' }}
-            </span>
-        @endif
-    </span>
-</button>
-                   class="relative flex items-center gap-2 btn-ghost px-3 py-2.5 ml-0.5"
-                   title="Cart">
-                    <div class="relative">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
-                        </svg>
-                        @if($cartCount > 0)
-                            <span class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-brand-600
-                                         text-white text-[9px] font-bold rounded-full flex
-                                         items-center justify-center leading-none">
-                                {{ min($cartCount, 9) }}
-                            </span>
-                        @endif
-                    </div>
-                    <span class="hidden sm:block text-sm font-medium text-ink-700 leading-none">
-                        Cart
-                        @if($cartCount > 0)
-                            <span class="block text-xs text-brand-600 font-semibold mt-0.5">
-                                {{ $cartCount }} item{{ $cartCount !== 1 ? 's' : '' }}
-                            </span>
-                        @endif
-                    </span>
-                </a>
 
+        @if($cartCount > 0)
+
+            <span class="absolute -top-1.5 -right-1.5
+                         w-4 h-4 bg-brand-600 text-white
+                         text-[9px] font-bold rounded-full
+                         flex items-center justify-center
+                         leading-none"
+                  data-cart-count="{{ $cartCount }}">
+
+                {{ min($cartCount, 9) }}
+
+            </span>
+
+        @endif
+
+    </div>
+
+    <span class="hidden sm:block text-sm
+                 font-medium text-ink-700 leading-none">
+
+        Cart
+
+        @if($cartCount > 0)
+
+            <span class="block text-xs
+                         text-brand-600 font-semibold mt-0.5">
+
+                {{ $cartCount }}
+                item{{ $cartCount !== 1 ? 's' : '' }}
+
+            </span>
+
+        @endif
+
+    </span>
+
+</button>
                 {{-- Divider --}}
                 <div class="w-px h-6 bg-ink-200 mx-1 hidden sm:block"></div>
 

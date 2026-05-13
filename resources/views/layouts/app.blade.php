@@ -332,8 +332,10 @@ document.querySelectorAll('[data-open-cart]').forEach(el => {
 </script>
 @endpush
 
-{{-- Cart drawer --}}
+{{-- Global components --}}
 @include('components.cart-drawer')
+@include('components.quick-view-modal')
+@include('components.compare-bar')
 
 {{-- Save search on form submit --}}
 <script>

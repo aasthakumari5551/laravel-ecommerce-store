@@ -106,6 +106,36 @@
 </div>
 @endif
 
+{{-- Trending search chips --}}
+@if($trendingKeywords)
+<div class="max-w-7xl mx-auto px-4 pb-2">
+    <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs text-ink-500 font-medium">🔥 Trending:</span>
+        @foreach($trendingKeywords as $kw)
+            <a href="{{ route('shop.products.index', ['q' => $kw]) }}"
+               class="px-3 py-1.5 bg-white border border-ink-200 rounded-full text-xs
+                      font-medium text-ink-700 hover:border-brand-400 hover:text-brand-700
+                      hover:bg-brand-50 transition-all shadow-sm">
+                {{ $kw }}
+            </a>
+        @endforeach
+    </div>
+</div>
+@endif
+
+{{-- Personalised section --}}
+<div class="max-w-7xl mx-auto px-4 py-4">
+    <x-product-carousel
+        :products="$forYou['products']"
+        :title="$forYou['title']"
+        :subtitle="$forYou['subtitle']"
+        :link="route('shop.products.index')"
+        id="carousel-for-you"
+        badge="FOR YOU"
+        badge-color="purple"
+    />
+</div>
+
 {{-- ═══════════════════ CATEGORIES ═══════════════════ --}}
 @if($categories->isNotEmpty())
 <section class="max-w-7xl mx-auto px-4 py-4 sm:py-8">

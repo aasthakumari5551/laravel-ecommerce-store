@@ -27,6 +27,14 @@
             @endif
         </a>
 
+        {{-- Quick view button --}}
+<button @click.prevent="$dispatch('quick-view', '{{ $product->uuid }}')"
+        class="absolute inset-x-0 bottom-0 bg-ink-900/80 backdrop-blur-sm text-white
+               text-xs font-semibold py-2 opacity-0 group-hover:opacity-100
+               transition-all duration-200 translate-y-full group-hover:translate-y-0">
+    Quick View
+</button>
+
         {{-- Badges --}}
         <div class="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
             @if ($onSale)
@@ -169,6 +177,33 @@
     </form>
 
 @endunless
+
         </div>
+
+        {{-- Compare toggle --}}
+        <button
+            @click="$dispatch('compare-toggle', {
+                uuid:  '{{ $product->uuid }}',
+                name:  '{{ addslashes($product->name) }}',
+                image: '{{ $product->primaryImage?->url ?? '' }}'
+            })"
+            class="text-[10px] text-ink-400 hover:text-brand-600
+                   transition-colors flex items-center gap-1 mt-1.5">
+
+            <svg class="w-3 h-3"
+                 fill="none"
+                 stroke="currentColor"
+                 viewBox="0 0 24 24">
+
+                <path stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+
+            Compare
+
+        </button>
+
     </div>
 </article>

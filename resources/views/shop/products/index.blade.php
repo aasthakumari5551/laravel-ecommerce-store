@@ -16,6 +16,34 @@
         @endif
     </nav>
 
+    {{-- Did-you-mean --}}
+@if(request('q') && $didYouMean = app(\App\Services\SearchService::class)->didYouMean(request('q')))
+    <div class="mb-4 text-sm text-ink-600">
+        Did you mean:
+        <a href="{{ request()->fullUrlWithQuery(['q' => $didYouMean]) }}"
+           class="text-brand-600 font-semibold hover:underline">
+            {{ $didYouMean }}
+        </a>?
+    </div>
+@endif
+
+{{-- Trending keywords chips (show when no search active) --}}
+@if(!request('q'))
+    @php $keywords = app(\App\Services\SearchService::class)->trendingKeywords(8); @endphp
+    <div class="flex flex-wrap gap-2 mb-5">
+        <span class="text-xs text-ink-400 font-medium self-center">🔥 Trending:</span>
+        @foreach($keywords as $kw)
+            <a href="{{ route('shop.products.index', ['q' => $kw]) }}"
+               class="inline-flex items-center px-3 py-1.5 bg-white border border-ink-200
+                      rounded-full text-xs font-medium text-ink-700
+                      hover:border-brand-400 hover:text-brand-700
+                      hover:bg-brand-50 transition-all">
+                {{ $kw }}
+            </a>
+        @endforeach
+    </div>
+@endif
+
     <div class="flex gap-7 items-start">
 
         {{-- ════════════════════════════════════════════════

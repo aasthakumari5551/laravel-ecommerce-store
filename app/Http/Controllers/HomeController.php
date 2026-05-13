@@ -2,67 +2,42 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
 use App\Services\CacheService;
+use App\Services\PersonalisationService;
 use App\Services\RecommendationService;
+use App\Services\SearchService;
 
 class HomeController extends Controller
 {
     public function __construct(
-        private CacheService $cache,
-        private RecommendationService $rec,
+        private CacheService           $cache,
+        private RecommendationService  $rec,
+        private PersonalisationService $personal,
+        private SearchService          $search,
     ) {}
 
     public function index()
     {
-        $categories = $this->cache->categories();
+        $categories          = $this->cache->categories();
+        $featuredProducts    = $this->cache->featuredProducts();
+        $trending            = $this->rec->trending(10);
+        $flashSale           = $this->rec->flashSale(8);
+        $popularBrands       = $this->rec->popularBrands(8);
+        $featuredCollections = $this->rec->featuredCollections();
+        $forYou              = $this->personal->forYou(10);
+        $trendingKeywords    = $this->search->trendingKeywords(8);
 
-        $featuredProducts = $this->cache
-            ->featuredProducts();
-
-        $trending = $this->rec
-            ->trending(10);
-
-        $flashSale = $this->rec
-            ->flashSale(8);
-
-        $popularBrands = $this->rec
-            ->popularBrands(8);
-
-        $featuredCollections = $this->rec
-            ->featuredCollections();
-
-        // Latest products
-
-        $latestProducts = Product::active()
+        $latestProducts = \App\Models\Product::active()
             ->inStock()
-            ->with([
-                'primaryImage',
-                'category',
-            ])
+            ->with(['primaryImage', 'category'])
             ->latest()
             ->limit(8)
             ->get();
 
-        // Top-rated products
-
-        $topRated = Product::active()
-            ->inStock()
-            ->with(['primaryImage'])
-            ->where('review_count', '>', 0)
-            ->orderByDesc('avg_rating')
-            ->limit(4)
-            ->get();
-
         return view('home', compact(
-            'categories',
-            'featuredProducts',
-            'trending',
-            'flashSale',
-            'popularBrands',
-            'featuredCollections',
-            'latestProducts',
-            'topRated',
+            'categories', 'featuredProducts', 'trending',
+            'flashSale', 'popularBrands', 'featuredCollections',
+            'forYou', 'trendingKeywords', 'latestProducts',
         ));
     }
 }

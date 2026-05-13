@@ -167,10 +167,41 @@ Route::middleware('auth')->prefix('reviews')->name('reviews.')->group(function (
 });
 
 // ── Shop product catalog ───────────────────────────────────
+// ── Shop product catalog ───────────────────────────────────
 Route::prefix('shop')->name('shop.')->group(function () {
-    Route::get('/products',                [ShopProductController::class, 'index'])->name('products.index');
-    Route::get('/products/{product:uuid}', [ShopProductController::class, 'show'])->name('products.show');
-    Route::get('/products/suggestions',    [ShopProductController::class, 'suggestions'])->name('products.suggestions');
+
+    Route::get('/products',
+        [ShopProductController::class, 'index']
+    )->name('products.index');
+
+    Route::get('/products/{product:uuid}',
+        [ShopProductController::class, 'show']
+    )->name('products.show');
+
+    Route::get('/products/suggestions',
+        [ShopProductController::class, 'suggestions']
+    )->name('products.suggestions');
+
+
+    // Compare page
+    Route::get('/compare', function (\Illuminate\Http\Request $request) {
+
+        $uuids = explode(',', $request->input('ids', ''));
+
+        $products = \App\Models\Product::whereIn(
+                'uuid',
+                array_slice($uuids, 0, 3)
+            )
+            ->with([
+                'primaryImage',
+                'category',
+            ])
+            ->get();
+
+        return view('shop.compare.index', compact('products'));
+
+    })->name('compare');
+
 });
 
 // ── Profile ───────────────────────────────────────────────
