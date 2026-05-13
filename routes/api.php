@@ -16,3 +16,30 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('/orders/{uuid}',  [ApiOrderController::class, 'show'])->name('orders.show');
     });
 });
+
+Route::middleware('web')->group(function () {
+    // Cart drawer data endpoint
+    Route::get('/cart', function () {
+        $cartService = app(\App\Services\CartService::class);
+        $summary     = $cartService->summary();
+
+        // Attach product data for drawer
+        $items = $summary['items']->load(['product.primaryImage']);
+        $itemsData = $items->map(fn ($item) => [
+            'id'           => $item->id,
+            'product_name' => $item->product->name,
+            'quantity'     => $item->quantity,
+            'unit_price'   => (float) $item->unit_price,
+            'product'      => [
+                'uuid'              => $item->product->uuid,
+                'primary_image_url' => $item->product->primaryImage?->url,
+            ],
+        ]);
+
+        return response()->json([
+            'items'       => $itemsData,
+            'subtotal'    => $summary['subtotal'],
+            'total_items' => $summary['total_items'],
+        ]);
+    });
+});

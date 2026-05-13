@@ -25,68 +25,9 @@
     {{-- ══════════════════════════════════════════════════
          PRODUCT DETAIL
     ══════════════════════════════════════════════════ --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-14"
-         x-data="productDetail()">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-14">
 
-        {{-- ── IMAGE GALLERY ─────────────────────────── --}}
-        <div class="space-y-3">
-
-            {{-- Main image --}}
-            <div class="relative overflow-hidden rounded-2xl bg-ink-50 aspect-square
-                        border border-ink-100 group">
-                <img :src="activeImage"
-                     :alt="activeAlt"
-                     class="w-full h-full object-cover transition-all duration-500"
-                     :class="zoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'"
-                     @click="zoomed = !zoomed"
-                     loading="eager">
-
-                {{-- Badge overlays --}}
-                <div class="absolute top-3 left-3 flex flex-col gap-1.5">
-                    @if($product->isOnSale())
-                        <span class="badge bg-red-500 text-white text-xs px-2.5 py-1 shadow">
-                            −{{ $product->discountPercentage() }}% OFF
-                        </span>
-                    @endif
-                    @if($product->is_featured)
-                        <span class="badge bg-brand-500 text-white text-xs px-2.5 py-1 shadow">
-                            Featured
-                        </span>
-                    @endif
-                    @if($product->isOutOfStock())
-                        <span class="badge bg-ink-600 text-white text-xs px-2.5 py-1">
-                            Out of Stock
-                        </span>
-                    @endif
-                </div>
-
-                {{-- Zoom hint --}}
-                <div class="absolute bottom-3 right-3 bg-white/80 backdrop-blur-sm rounded-lg
-                             px-2.5 py-1.5 text-xs text-ink-600 opacity-0 group-hover:opacity-100
-                             transition-opacity pointer-events-none">
-                    Click to zoom
-                </div>
-            </div>
-
-            {{-- Thumbnails --}}
-            @if($product->images->count() > 1)
-                <div class="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
-                    @foreach($product->images as $img)
-                        <button @click="setImage('{{ $img->url }}', '{{ $product->name }}')"
-                                class="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden
-                                       border-2 transition-all duration-150"
-                                :class="activeImage === '{{ $img->url }}'
-                                    ? 'border-brand-500 ring-2 ring-brand-200'
-                                    : 'border-ink-100 hover:border-ink-300'">
-                            <img src="{{ $img->url }}"
-                                 alt="{{ $img->alt_text ?? $product->name }}"
-                                 loading="lazy"
-                                 class="w-full h-full object-cover">
-                        </button>
-                    @endforeach
-                </div>
-            @endif
-        </div>
+        <x-product-gallery :product="$product" />
 
         {{-- ── PRODUCT INFO ───────────────────────────── --}}
         <div class="flex flex-col" x-data="{ qty: 1 }">
@@ -308,6 +249,16 @@
                     </span>
                 @endforeach
             </div>
+
+            {{-- Share --}}
+<div class="flex items-center gap-2 pt-1">
+
+    <x-share-product :product="$product" />
+
+</div>
+
+{{-- Pincode checker --}}
+<x-pincode-checker />
         </div>
     </div>
 
@@ -588,21 +539,5 @@
     <div class="lg:hidden h-20"></div>{{-- Spacer to prevent content hiding behind bar --}}
 @endunless
 
-@push('scripts')
-<script>
-function productDetail() {
-    const firstImage = @json($product->primaryImage?->url ?? $product->images->first()?->url ?? '');
-    return {
-        activeImage: firstImage,
-        activeAlt: @json($product->name),
-        zoomed: false,
-        setImage(url, alt) {
-            this.activeImage = url;
-            this.activeAlt = alt;
-            this.zoomed = false;
-        }
-    }
-}
-</script>
-@endpush
+
 @endsection

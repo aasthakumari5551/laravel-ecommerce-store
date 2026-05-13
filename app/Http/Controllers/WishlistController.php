@@ -19,15 +19,19 @@ class WishlistController extends Controller
         return view('shop.wishlist.index', compact('wishlist'));
     }
 
-    public function toggle(Request $request): RedirectResponse
-    {
-        $request->validate(['product_id' => ['required', 'integer', 'exists:products,id']]);
+    public function toggle(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
+{
+    $request->validate(['product_id' => ['required', 'integer', 'exists:products,id']]);
 
-        $added   = $this->wishlistService->toggle($request->product_id);
-        $message = $added ? 'Added to wishlist.' : 'Removed from wishlist.';
+    $added   = $this->wishlistService->toggle($request->product_id);
+    $message = $added ? 'Added to wishlist.' : 'Removed from wishlist.';
 
-        return back()->with('success', $message);
+    if ($request->wantsJson()) {
+        return response()->json(['added' => $added, 'message' => $message]);
     }
+
+    return back()->with('success', $message);
+}
 
     public function destroy(int $productId): RedirectResponse
     {

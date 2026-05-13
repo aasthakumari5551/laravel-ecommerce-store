@@ -18,19 +18,31 @@ class CartController extends Controller
         return view('shop.cart.index', $summary);
     }
 
-    public function store(StoreCartItemRequest $request): RedirectResponse
-    {
-        try {
-            $this->cartService->add(
-                $request->validated('product_id'),
-                $request->validated('quantity'),
-            );
-        } catch (\RuntimeException $e) {
-            return back()->withErrors(['stock' => $e->getMessage()]);
+    public function store(StoreCartItemRequest $request): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
+{
+    try {
+        $this->cartService->add(
+            $request->validated('product_id'),
+            $request->validated('quantity'),
+        );
+    } catch (\RuntimeException $e) {
+        if ($request->wantsJson()) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
-
-        return back()->with('success', 'Item added to cart.');
+        return back()->withErrors(['stock' => $e->getMessage()]);
     }
+
+    if ($request->wantsJson()) {
+        $summary = $this->cartService->summary();
+        return response()->json([
+            'message'     => 'Added to cart',
+            'cart_count'  => $summary['total_items'],
+            'subtotal'    => $summary['subtotal'],
+        ]);
+    }
+
+    return back()->with('success', 'Item added to cart.');
+}
 
     public function update(UpdateCartItemRequest $request, int $cartItemId): RedirectResponse
     {
