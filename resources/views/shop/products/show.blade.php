@@ -1,7 +1,53 @@
 @extends('layouts.app')
 
 @section('title', $product->name)
-@section('meta_description', $product->short_description ?? $product->name)
+
+@section(
+    'meta_description',
+    $product->short_description
+        ?? Str::limit($product->description, 155)
+)
+
+@section('og_type', 'product')
+
+@section(
+    'og_title',
+    $product->name . ' — ' . config('brand.name')
+)
+
+@section(
+    'og_image',
+    $product->primaryImage?->url
+        ?? asset('images/og-default.jpg')
+)
+
+@push('styles')
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": "{{ $product->name }}",
+  "description": "{{ addslashes($product->short_description ?? '') }}",
+  "brand": {
+    "@type": "Brand",
+    "name": "{{ $product->brand ?? config('brand.name') }}"
+  },
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "INR",
+    "price": "{{ $product->price }}",
+    "availability": "{{ $product->isOutOfStock() ? 'OutOfStock' : 'InStock' }}"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "{{ $product->avg_rating }}",
+    "reviewCount": "{{ $product->review_count }}"
+  }
+}
+</script>
+
+@endpush
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4 py-8">

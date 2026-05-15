@@ -143,17 +143,17 @@ class CartService
     // ── Summary ───────────────────────────────────────────────
 
     public function summary(): array
-    {
-        $cart  = $this->resolve()->load('items.product');
-        $items = $cart->items;
+{
+    $cart  = $this->resolve()->load('items.product.primaryImage');
+    $items = $cart->items->filter(fn ($item) => $item->product !== null); // skip orphaned
 
-        return [
-            'items'       => $items,
-            'subtotal'    => $cart->subtotal(),
-            'total_items' => $cart->totalItems(),
-            'is_empty'    => $cart->isEmpty(),
-        ];
-    }
+    return [
+        'items'       => $items,
+        'subtotal'    => (float) $items->sum(fn ($i) => $i->unit_price * $i->quantity),
+        'total_items' => (int)   $items->sum('quantity'),
+        'is_empty'    => $items->isEmpty(),
+    ];
+}
 
     // ── Stock Validation ──────────────────────────────────────
 

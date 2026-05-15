@@ -173,3 +173,33 @@ document.addEventListener('submit', async (e) => {
     } catch { window.toast.error('Something went wrong'); }
     finally  { btn.disabled = false; }
 });
+
+// ── Lazy image observer (fade-in on load) ─────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const images = document.querySelectorAll('img[loading="lazy"]');
+    images.forEach(img => {
+        if (img.complete) {
+            img.classList.add('loaded');
+        } else {
+            img.addEventListener('load',  () => img.classList.add('loaded'));
+            img.addEventListener('error', () => img.classList.add('loaded')); // prevent broken
+        }
+    });
+
+    // Observe new images added dynamically (e.g. carousel)
+    const imgObserver = new MutationObserver(mutations => {
+        mutations.forEach(m => {
+            m.addedNodes.forEach(node => {
+                if (node.tagName === 'IMG' && node.loading === 'lazy') {
+                    node.addEventListener('load', () => node.classList.add('loaded'));
+                }
+                if (node.querySelectorAll) {
+                    node.querySelectorAll('img[loading="lazy"]').forEach(img => {
+                        img.addEventListener('load', () => img.classList.add('loaded'));
+                    });
+                }
+            });
+        });
+    });
+    imgObserver.observe(document.body, { childList: true, subtree: true });
+});

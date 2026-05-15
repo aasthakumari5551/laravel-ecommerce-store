@@ -1,33 +1,60 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "🚀 Starting deployment..."
+echo ""
+echo "═══════════════════════════════════════"
+echo "  Velura Production Deploy"
+echo "═══════════════════════════════════════"
+echo ""
 
-# Pull latest code
+# 1. Pull
+echo "→ Pulling latest code..."
 git pull origin main
 
-# Install/update dependencies (no dev, optimised)
-composer install --no-dev --optimize-autoloader --no-interaction
+# 2. PHP dependencies
+echo "→ Installing PHP dependencies..."
+composer install --no-dev --optimize-autoloader --no-interaction --quiet
 
-# Build frontend
-npm ci && npm run build
+# 3. Frontend
+echo "→ Building frontend..."
+npm ci --silent
+npm run build
 
-# Run migrations (--force required in production)
+# 4. Cache clear (before migrate — avoids stale config issues)
+echo "→ Clearing caches..."
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan cache:clear
+
+# 5. Migrate
+echo "→ Running migrations..."
 php artisan migrate --force
 
-# Clear and rebuild all caches
+# 6. Rebuild caches
+echo "→ Rebuilding caches..."
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan event:cache
 
-# Clear application cache (Redis) — avoids stale cache serving old code
-php artisan cache:clear
+# 7. Storage
+echo "→ Linking storage..."
+php artisan storage:link --force 2>/dev/null || true
 
-# Restart queue workers so they pick up new code
+# 8. Queue restart
+echo "→ Restarting queue workers..."
 php artisan queue:restart
 
-# Create storage symlink if missing
-php artisan storage:link --force
+# 9. Permissions
+echo "→ Setting permissions..."
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 
-echo "✅ Deployment complete."
+# 10. Warmup
+echo "→ Warming up..."
+php artisan app:setup-roles 2>/dev/null || true
+
+echo ""
+echo "✅ Deploy complete!"
+echo ""
