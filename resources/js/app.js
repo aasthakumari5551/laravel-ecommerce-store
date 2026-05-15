@@ -1,205 +1,217 @@
 import './bootstrap';
 
-// ── Global cart store (shared across components) ──────────
-window.cartStore = () => ({
-    count: parseInt(document.querySelector('[data-cart-count]')?.dataset.cartCount || '0'),
-    subtotal: 0,
-    open: false,
-
-    increment(qty = 1) {
-        this.count += qty;
-        this.updateBadges();
-    },
-    decrement(qty = 1) {
-        this.count = Math.max(0, this.count - qty);
-        this.updateBadges();
-    },
-    updateBadges() {
-        document.querySelectorAll('[data-cart-count]').forEach(el => {
-            el.dataset.cartCount = this.count;
-            el.textContent = this.count;
-        });
-    }
-});
-
-// ── Toast notification system ─────────────────────────────
-window.toast = {
-    _container: null,
-
-    _ensure() {
-        if (!this._container) {
-            this._container = document.createElement('div');
-            this._container.className =
-                'fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none';
-            document.body.appendChild(this._container);
-        }
-    },
-
-    show(message, type = 'success', duration = 3500) {
-        this._ensure();
-
-        const icons = {
-            success: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>`,
-            error:   `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>`,
-            info:    `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>`,
-            cart:    `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>`,
-            heart:   `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>`,
-        };
-        const colors = {
-            success: 'bg-green-600', error: 'bg-red-600',
-            info: 'bg-ink-800', cart: 'bg-brand-600', heart: 'bg-red-500',
-        };
-
-        const el = document.createElement('div');
-        el.className = `pointer-events-auto flex items-center gap-3 ${colors[type] || colors.info}
-                        text-white text-sm font-medium px-4 py-3 rounded-xl shadow-xl max-w-xs
-                        translate-x-full opacity-0 transition-all duration-300`;
-        el.innerHTML = `
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor"
-                 viewBox="0 0 24 24">${icons[type] || icons.info}</svg>
-            <span>${message}</span>`;
-
-        this._container.appendChild(el);
-        requestAnimationFrame(() => {
-            el.classList.remove('translate-x-full', 'opacity-0');
-        });
-
-        setTimeout(() => {
-            el.classList.add('opacity-0', 'translate-x-full');
-            setTimeout(() => el.remove(), 300);
-        }, duration);
-    },
-
-    success: (msg, d) => window.toast.show(msg, 'success', d),
-    error:   (msg, d) => window.toast.show(msg, 'error', d),
-    cart:    (msg, d) => window.toast.show(msg, 'cart', d),
-    heart:   (msg, d) => window.toast.show(msg, 'heart', d),
-    info:    (msg, d) => window.toast.show(msg, 'info', d),
-};
+// ── CSRF helper ───────────────────────────────────────────
+const csrf = () => document
+    .querySelector('meta[name=csrf-token]')?.content ?? '';
 
 // ── Recent searches (localStorage) ───────────────────────
 window.recentSearches = {
-    key: 'velura_searches',
-    get()          { try { return JSON.parse(localStorage.getItem(this.key) || '[]'); } catch { return []; } },
-    add(term)      {
-        if (!term?.trim()) return;
-        const list = [term, ...this.get().filter(s => s !== term)].slice(0, 8);
-        localStorage.setItem(this.key, JSON.stringify(list));
-    },
-    remove(term)   {
-        localStorage.setItem(this.key, JSON.stringify(this.get().filter(s => s !== term)));
-    },
-    clear()        { localStorage.removeItem(this.key); },
+    _key: 'velura_searches',
+    get()        { try { return JSON.parse(localStorage.getItem(this._key) ?? '[]'); } catch { return []; } },
+    add(t)       { if (!t?.trim()) return; localStorage.setItem(this._key, JSON.stringify([t, ...this.get().filter(s => s !== t)].slice(0, 8))); },
+    remove(t)    { localStorage.setItem(this._key, JSON.stringify(this.get().filter(s => s !== t))); },
+    clear()      { localStorage.removeItem(this._key); },
 };
 
-// ── Intercept add-to-cart forms ───────────────────────────
+// ── Toast system ──────────────────────────────────────────
+window.toast = (() => {
+    let container = null;
+
+    const ensure = () => {
+        if (container) return;
+        container = Object.assign(document.createElement('div'), {
+            className: 'fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none w-72',
+        });
+        document.body.appendChild(container);
+    };
+
+    const colors = {
+        success: 'bg-green-600', error: 'bg-red-600',
+        info: 'bg-ink-800', cart: 'bg-brand-600', heart: 'bg-red-500',
+    };
+
+    const svgPaths = {
+        success: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        error:   'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+        info:    'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+        cart:    'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z',
+        heart:   'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+    };
+
+    const show = (message, type = 'info', duration = 3500) => {
+        ensure();
+        const el = document.createElement('div');
+        el.className = `pointer-events-auto flex items-center gap-3 ${colors[type] ?? colors.info}
+            text-white text-sm font-medium px-4 py-3 rounded-xl shadow-xl max-w-full
+            opacity-0 translate-x-4 transition-all duration-300`;
+        el.setAttribute('role', 'alert');
+        el.setAttribute('aria-live', 'assertive');
+        el.innerHTML = `
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="${svgPaths[type] ?? svgPaths.info}"/>
+            </svg>
+            <span class="flex-1 leading-snug">${message}</span>`;
+        container.appendChild(el);
+        requestAnimationFrame(() => {
+            el.classList.remove('opacity-0', 'translate-x-4');
+        });
+        setTimeout(() => {
+            el.classList.add('opacity-0', 'translate-x-4');
+            setTimeout(() => el.remove(), 320);
+        }, duration);
+    };
+
+    return {
+        show,
+        success: (m, d) => show(m, 'success', d),
+        error:   (m, d) => show(m, 'error',   d),
+        info:    (m, d) => show(m, 'info',     d),
+        cart:    (m, d) => show(m, 'cart',     d),
+        heart:   (m, d) => show(m, 'heart',    d),
+    };
+})();
+
+// ── AJAX cart form intercept ──────────────────────────────
 document.addEventListener('submit', async (e) => {
-    const form = e.target;
-    if (!form.matches('[data-cart-form]')) return;
+    const form = e.target.closest('[data-cart-form]');
+    if (!form) return;
     e.preventDefault();
+    e.stopPropagation();
 
     const btn = form.querySelector('[type=submit]');
-    const originalHTML = btn.innerHTML;
-    btn.disabled = true;
+    if (!btn || btn.disabled) return;
+
+    const original = btn.innerHTML;
+    btn.disabled  = true;
     btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor"
-        viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>`;
+        viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round"
+        stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11
+        11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>`;
 
     try {
+        const fd = new FormData(form);
         const res = await fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form),
-            headers: { 'X-Requested-With': 'XMLHttpRequest',
-                       'Accept': 'application/json' },
+            method:  'POST',
+            body:    fd,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept':           'application/json',
+                'X-CSRF-TOKEN':     csrf(),
+            },
         });
         const data = await res.json();
 
         if (res.ok) {
             window.toast.cart('Added to cart!');
-            // Success animation on button
             btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor"
                 viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round"
                 stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>`;
-            btn.classList.add('bg-green-600');
+            btn.classList.add('bg-green-600', 'border-green-600');
+
+            // Update cart count badge
+            if (data.cart_count !== undefined) {
+                document.querySelectorAll('[data-cart-count]').forEach(el => {
+                    el.textContent = data.cart_count;
+                    el.dataset.cartCount = data.cart_count;
+                    el.style.display = data.cart_count > 0 ? '' : 'none';
+                });
+            }
+
             setTimeout(() => {
-                btn.innerHTML = originalHTML;
-                btn.classList.remove('bg-green-600');
-                btn.disabled = false;
+                btn.innerHTML = original;
+                btn.classList.remove('bg-green-600', 'border-green-600');
+                btn.disabled  = false;
             }, 1800);
         } else {
-            window.toast.error(data.message || 'Could not add to cart');
-            btn.innerHTML = originalHTML;
-            btn.disabled = false;
+            window.toast.error(data.message ?? 'Could not add to cart');
+            btn.innerHTML = original;
+            btn.disabled  = false;
+        }
+    } catch (err) {
+        console.error('Cart error:', err);
+        window.toast.error('Something went wrong. Please try again.');
+        btn.innerHTML = original;
+        btn.disabled  = false;
+    }
+}, true); // capture phase to catch before Alpine
+
+// ── AJAX wishlist intercept ───────────────────────────────
+document.addEventListener('submit', async (e) => {
+    const form = e.target.closest('[data-wishlist-form]');
+    if (!form) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const btn = form.querySelector('button[type=submit]');
+    if (btn) btn.disabled = true;
+
+    try {
+        const res  = await fetch(form.action, {
+            method:  'POST',
+            body:    new FormData(form),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept':           'application/json',
+                'X-CSRF-TOKEN':     csrf(),
+            },
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            const added = data.added ?? true;
+            window.toast.heart(added ? '❤️ Saved to wishlist' : 'Removed from wishlist');
+            if (btn) {
+                const svg   = btn.querySelector('svg');
+                if (svg) {
+                    svg.style.fill   = added ? '#ef4444' : 'none';
+                    svg.style.color  = added ? '#ef4444' : '';
+                }
+            }
+        } else {
+            window.toast.error(data.message ?? 'Please sign in first');
         }
     } catch {
         window.toast.error('Something went wrong');
-        btn.innerHTML = originalHTML;
-        btn.disabled = false;
+    } finally {
+        if (btn) btn.disabled = false;
     }
-});
+}, true);
 
-// ── Intercept wishlist toggle forms ──────────────────────
-document.addEventListener('submit', async (e) => {
-    const form = e.target;
-    if (!form.matches('[data-wishlist-form]')) return;
-    e.preventDefault();
+// ── Lazy image fade-in ────────────────────────────────────
+const initLazyImages = (root = document) => {
+    root.querySelectorAll('img[loading="lazy"]').forEach(img => {
+        const done = () => img.classList.add('loaded');
+        img.complete ? done() : img.addEventListener('load', done);
+        img.addEventListener('error', done);
+    });
+};
 
-    const btn = form.querySelector('button');
-    btn.disabled = true;
-
-    try {
-        const res = await fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form),
-            headers: { 'X-Requested-With': 'XMLHttpRequest',
-                       'Accept': 'application/json' },
-        });
-        const data = await res.json();
-        if (res.ok) {
-            const added = data.added ?? true;
-            window.toast.heart(added ? '❤️ Added to wishlist' : 'Removed from wishlist');
-            // Toggle heart fill
-            const svg = btn.querySelector('svg');
-            if (svg) {
-                svg.style.fill    = added ? '#ef4444' : 'none';
-                svg.style.stroke  = added ? '#ef4444' : 'currentColor';
-            }
-        }
-    } catch { window.toast.error('Something went wrong'); }
-    finally  { btn.disabled = false; }
-});
-
-// ── Lazy image observer (fade-in on load) ─────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    const images = document.querySelectorAll('img[loading="lazy"]');
-    images.forEach(img => {
-        if (img.complete) {
-            img.classList.add('loaded');
-        } else {
-            img.addEventListener('load',  () => img.classList.add('loaded'));
-            img.addEventListener('error', () => img.classList.add('loaded')); // prevent broken
-        }
-    });
+    initLazyImages();
 
-    // Observe new images added dynamically (e.g. carousel)
-    const imgObserver = new MutationObserver(mutations => {
-        mutations.forEach(m => {
+    // Watch for dynamically added images
+    new MutationObserver(mutations => {
+        mutations.forEach(m =>
             m.addedNodes.forEach(node => {
-                if (node.tagName === 'IMG' && node.loading === 'lazy') {
-                    node.addEventListener('load', () => node.classList.add('loaded'));
+                if (node.nodeType !== 1) return;
+                if (node.tagName === 'IMG') {
+                    const done = () => node.classList.add('loaded');
+                    node.complete ? done() : node.addEventListener('load', done);
+                } else {
+                    initLazyImages(node);
                 }
-                if (node.querySelectorAll) {
-                    node.querySelectorAll('img[loading="lazy"]').forEach(img => {
-                        img.addEventListener('load', () => img.classList.add('loaded'));
-                    });
-                }
-            });
+            })
+        );
+    }).observe(document.body, { childList: true, subtree: true });
+});
+
+// ── Cart drawer open trigger ──────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-open-cart]').forEach(el => {
+        el.addEventListener('click', e => {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('cart-open'));
         });
     });
-    imgObserver.observe(document.body, { childList: true, subtree: true });
 });

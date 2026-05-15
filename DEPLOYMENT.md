@@ -1,71 +1,72 @@
 # Velura — Production Deployment Checklist
 
-## Environment (.env)
-- [ ] APP_ENV=production
-- [ ] APP_DEBUG=false
-- [ ] APP_KEY generated (php artisan key:generate)
-- [ ] APP_URL=https://yourdomain.com
-- [ ] DB_* credentials set (MySQL 8.0)
-- [ ] CACHE_DRIVER=redis
-- [ ] QUEUE_CONNECTION=redis
-- [ ] SESSION_DRIVER=redis
-- [ ] REDIS_HOST / REDIS_PORT set
-- [ ] MAIL_MAILER=ses (or smtp)
-- [ ] MAIL_FROM_ADDRESS=noreply@yourdomain.com
-- [ ] FILESYSTEM_DISK=public (or s3)
-- [ ] BRAND_* config values verified
+## Pre-deploy
+- [ ] All tests passing locally
+- [ ] .env.production values set (see below)
+- [ ] Storage symlink verified (php artisan storage:link)
+- [ ] Queue worker running (supervisor)
+- [ ] Scheduler registered in cron
 
-## Build
-- [ ] composer install --no-dev --optimize-autoloader
-- [ ] npm run build
-- [ ] php artisan config:cache
-- [ ] php artisan route:cache
-- [ ] php artisan view:cache
-- [ ] php artisan event:cache
-- [ ] php artisan storage:link
+## .env critical values
+```env
+APP_NAME=Velura
+APP_ENV=production
+APP_KEY=base64:...          # php artisan key:generate --show
+APP_DEBUG=false
+APP_URL=https://yourdomain.com
 
-## Database
-- [ ] php artisan migrate --force
-- [ ] php artisan app:setup-roles
-- [ ] php artisan db:seed (CategorySeeder, ProductSeeder)
+DB_CONNECTION=mysql
+DB_HOST=your-rds-host
+DB_DATABASE=velura
+DB_USERNAME=velura_user
+DB_PASSWORD=strong-password
 
-## Queue / Scheduler
-- [ ] queue:work running (supervisor recommended)
-- [ ] php artisan schedule:run in cron (every minute)
+CACHE_DRIVER=redis
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=redis
+REDIS_HOST=your-redis-host
+REDIS_PASSWORD=null
+REDIS_PORT=6379
 
-## Supervisor config (queue worker)
-```ini
-[program:velura-queue]
-command=php /var/www/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
-autostart=true
-autorestart=true
-user=www-data
-redirect_stderr=true
-stdout_logfile=/var/log/velura-queue.log
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.yourdomain.com
+MAIL_PORT=587
+MAIL_FROM_ADDRESS=noreply@yourdomain.com
+MAIL_FROM_NAME=Velura
+
+FILESYSTEM_DISK=public
 ```
 
-## Nginx
-- [ ] Gzip enabled
-- [ ] Static asset cache headers (1y for css/js/images)
-- [ ] SSL certificate active
-- [ ] www → non-www redirect (or reverse)
-- [ ] PHP-FPM socket configured
+## Deploy command
+```bash
+chmod +x deploy.sh && ./deploy.sh
+```
 
-## Smoke Tests
-- [ ] Homepage loads
-- [ ] Product listing works
-- [ ] Product detail + gallery works
-- [ ] Add to cart (AJAX)
-- [ ] Cart drawer opens
-- [ ] Wishlist toggle
-- [ ] Checkout flow
-- [ ] Demo payment success
-- [ ] Demo payment failure + stock restore
-- [ ] Order confirmation email sent (check queue)
-- [ ] Admin login + dashboard
-- [ ] Admin order status update
-- [ ] Notification bell shows unread
-- [ ] Compare bar works
-- [ ] Quick view opens
+## Supervisor (queue worker)
+```ini
+[program:velura-worker]
+command=php /var/www/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+directory=/var/www
+user=www-data
+numprocs=2
+autostart=true
+autorestart=true
+redirect_stderr=true
+stdout_logfile=/var/log/supervisor/velura-worker.log
+```
+
+## Cron
+
+cd /var/www && php artisan schedule:run >> /dev/null 2>&1
+
+## Smoke test after deploy
+- [ ] / homepage loads < 2s
+- [ ] /shop/products loads with products
+- [ ] Add to cart (AJAX, no page reload)
+- [ ] Cart drawer opens and loads items
+- [ ] Checkout → demo payment → order confirmation
+- [ ] Admin login and dashboard
+- [ ] Admin can update order status
+- [ ] Email sent (check queue logs)
 - [ ] 404 page renders correctly
-- [ ] Mobile responsive
+- [ ] Mobile responsive (test at 375px)

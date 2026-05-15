@@ -1,59 +1,185 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+<div align="center">
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+# Velura — Premium E-Commerce Platform
 
-## About Laravel
+**A production-grade Laravel e-commerce platform built for modern online retail.**
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+[![Laravel](https://img.shields.io/badge/Laravel-12.x-FF2D20?logo=laravel)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.2-777BB4?logo=php)](https://php.net)
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.x-38B2AC?logo=tailwind-css)](https://tailwindcss.com)
+[![Alpine.js](https://img.shields.io/badge/Alpine.js-3.x-8BC0D0?logo=alpine.js)](https://alpinejs.dev)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql)](https://mysql.com)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+[Live Demo](#) · [Admin Demo](#) · [Documentation](#)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+</div>
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 📸 Screenshots
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+> Homepage · Product Listing · Product Detail · Cart · Checkout · Admin Dashboard
 
-## Laravel Sponsors
+*(Add screenshots to `/docs/screenshots/` and reference here)*
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## ✨ Feature Showcase
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Storefront
+| Feature | Description |
+|---|---|
+| 🔍 Smart Search | Fuzzy search with typo correction, autocomplete, trending keywords |
+| 🛍️ Cart Drawer | Slide-in AJAX cart with free shipping progress bar |
+| ❤️ Wishlist | Add/remove products with animated feedback |
+| 🔄 Quick View | Modal product preview without page navigation |
+| ⚖️ Compare | Side-by-side product comparison (up to 3) |
+| 📦 Order Tracking | Visual timeline with real-time status updates |
+| 🎁 Coupons | Discount engine with usage limits, expiry, and type variants |
+| 🔔 Notifications | In-app notification center with unread badges |
+| 📱 Responsive | Fully optimised for mobile, tablet, and desktop |
 
-## Contributing
+### Product Discovery
+| Feature | Description |
+|---|---|
+| 🤖 Personalisation | Browsing-history based recommendations |
+| 🔥 Trending | Real-time trending products and keywords |
+| ⚡ Flash Sales | Countdown timer with stock urgency bars |
+| 🏷️ Brands | Popular brand discovery grid |
+| 🗂️ Categories | Hierarchical category tree with emoji icons |
+| 📊 Reviews | Verified purchase reviews with star ratings |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Admin Panel
+| Feature | Description |
+|---|---|
+| 📈 Analytics | Revenue charts, KPI cards, period comparison |
+| 📦 Products | Full CRUD with image uploads (Spatie Media Library) |
+| 🛒 Orders | Order management with state machine transitions |
+| 🏷️ Coupons | Create and manage discount campaigns |
+| ⭐ Reviews | Moderation queue with approve/reject |
+| 🔔 Low Stock | Real-time inventory alerts |
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 🏗️ Architecture
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## 🛠️ Tech Stack
 
-## License
+| Layer | Technology |
+|---|---|
+| **Backend** | Laravel 12, PHP 8.2 |
+| **Frontend** | Blade, Tailwind CSS 3, Alpine.js 3 |
+| **Database** | MySQL 8.0 |
+| **Cache / Queue** | Redis (database driver for local) |
+| **Media** | Spatie Laravel Media Library |
+| **Auth / Roles** | Laravel Breeze + Spatie Permission |
+| **Payment** | Simulated gateway (Razorpay-compatible interface) |
+| **Email** | Laravel Mail (Markdown) + Queue |
+| **Containerisation** | Docker + Docker Compose |
+| **Assets** | Vite + Laravel Mix |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- PHP 8.2+, Composer, Node 18+, MySQL 8.0
+
+### Installation
+
+```bash
+# 1. Clone
+git clone https://github.com/yourusername/velura.git
+cd velura
+
+# 2. Install
+composer install
+npm install
+
+# 3. Environment
+cp .env.example .env
+php artisan key:generate
+
+# 4. Configure .env
+#    DB_DATABASE, DB_USERNAME, DB_PASSWORD
+
+# 5. Migrate + seed
+php artisan migrate
+php artisan db:seed
+
+# 6. Storage
+php artisan storage:link
+
+# 7. Build + serve
+npm run dev
+php artisan serve
+```
+
+Visit `http://localhost:8000`
+
+### Demo Accounts
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | admin@velura.in | password |
+| Customer | priya@demo.in | password |
+| Customer | rahul@demo.in | password |
+
+---
+
+## 🐳 Docker Setup
+
+```bash
+cp .env.example .env
+# Set DB_HOST=mysql, REDIS_HOST=redis
+
+docker-compose up -d
+docker-compose exec app php artisan migrate --seed
+docker-compose exec app php artisan storage:link
+```
+
+---
+
+## 🌐 Production Deployment
+
+```bash
+# Deploy to any server
+./deploy.sh
+
+# Required .env values for production
+APP_ENV=production
+APP_DEBUG=false
+CACHE_DRIVER=redis
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=redis
+MAIL_MAILER=ses          # or smtp
+FILESYSTEM_DISK=s3       # or public
+```
+
+See `DEPLOYMENT.md` for the full production checklist.
+
+---
+
+## 📁 Key Design Decisions
+
+- **Service layer pattern** — all business logic lives in `app/Services/`, controllers stay thin
+- **PaymentGateway interface** — swap `SimulatedPaymentService` for real Razorpay in one line
+- **UUID public identifiers** — database IDs never exposed in URLs or API responses
+- **Event-driven emails** — order events fire jobs, jobs send mail — clean, retryable, queueable
+- **Cache-first reads** — categories, featured products, related products all cache-first
+- **State machine orders** — `OrderStatus::canTransitionTo()` enforces legal status transitions
+- **Race-condition-safe stock** — `lockForUpdate()` + `where stock >= qty` prevents overselling
+
+---
+
+## 📄 Licence
+
+MIT — built for portfolio demonstration purposes.
+
+---
+
+<div align="center">
+Built with ❤️ using Laravel + Tailwind CSS
+</div>

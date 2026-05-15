@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
-
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -20,26 +20,13 @@ class Product extends Model implements HasMedia
     use HasFactory, SoftDeletes, InteractsWithMedia;
 
     protected $fillable = [
-        'uuid',
-        'category_id',
-        'name',
-        'slug',
-        'brand',
-        'sku',
-        'short_description',
-        'description',
-        'price',
-        'compare_price',
-        'cost_price',
-        'stock',
-        'low_stock_threshold',
-        'track_inventory',
-        'is_active',
-        'is_featured',
-        'tags',
-        'meta_title',
-        'meta_description',
-        'sort_order',
+        'uuid', 'category_id', 'name', 'slug', 'brand', 'sku',
+        'short_description', 'description',
+        'price', 'compare_price', 'cost_price',
+        'stock', 'low_stock_threshold', 'track_inventory',
+        'is_active', 'is_featured',
+        'avg_rating', 'review_count',
+        'meta_title', 'meta_description', 'tags', 'sort_order',
     ];
 
     protected function casts(): array
@@ -53,28 +40,24 @@ class Product extends Model implements HasMedia
             'track_inventory'     => 'boolean',
             'is_active'           => 'boolean',
             'is_featured'         => 'boolean',
+            'avg_rating'          => 'decimal:2',
+            'review_count'        => 'integer',
             'sort_order'          => 'integer',
             'tags'                => 'array',
         ];
     }
 
-    // ── Boot ─────────────────────────────────────────────────
-
     protected static function booted(): void
     {
         static::creating(function (Product $product) {
-
-            if (empty($product->uuid)) {
-                $product->uuid = (string) Str::uuid();
-            }
-
+            $product->uuid ??= (string) Str::uuid();
             if (empty($product->slug)) {
-                $product->slug = Str::slug($product->name);
+                $product->slug = Str::slug($product->name) . '-' . Str::random(4);
             }
         });
     }
 
-    // ── Relationships ─────────────────────────────────────────
+    // ── Relationships ─────────────────────────────────────
 
     public function category(): BelongsTo
     {
@@ -83,32 +66,15 @@ class Product extends Model implements HasMedia
 
     public function images(): HasMany
     {
-        return $this->hasMany(ProductImage::class)
-            ->orderBy('sort_order');
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
     }
 
     public function primaryImage(): HasOne
     {
         return $this->hasOne(ProductImage::class)
-            ->where('is_primary', true);
+                    ->where('is_primary', true)
+                    ->oldestOfMany('sort_order');
     }
-
-    public function cartItems(): HasMany
-    {
-        return $this->hasMany(CartItem::class);
-    }
-
-    public function wishlistedByUsers(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            User::class,
-            'wishlist_items',
-            'product_id',
-            'wishlist_id'
-        );
-    }
-
-    // ── Reviews ──────────────────────────────────────────────
 
     public function reviews(): HasMany
     {
@@ -118,14 +84,16 @@ class Product extends Model implements HasMedia
     public function approvedReviews(): HasMany
     {
         return $this->hasMany(Review::class)
-            ->where(
-                'status',
-                \App\Enums\ReviewStatus::Approved->value
-            )
-            ->latest();
+                    ->where('status', \App\Enums\ReviewStatus::Approved->value)
+                    ->latest();
     }
 
-    // ── Scopes ───────────────────────────────────────────────
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(CartItem::class);
+    }
+
+    // ── Scopes ────────────────────────────────────────────
 
     public function scopeActive($query): void
     {
@@ -139,19 +107,22 @@ class Product extends Model implements HasMedia
 
     public function scopeInStock($query): void
     {
-        $query->where('stock', '>', 0);
+        $query->where(fn ($q) =>
+            $q->where('track_inventory', false)
+              ->orWhere('stock', '>', 0)
+        );
     }
 
     public function scopeLowStock($query): void
     {
-        $query->whereColumn('stock', '<=', 'low_stock_threshold')
-            ->where('stock', '>', 0);
+        $query->where('track_inventory', true)
+              ->whereColumn('stock', '<=', 'low_stock_threshold')
+              ->where('stock', '>', 0);
     }
 
     public function scopeOrdered($query): void
     {
-        $query->orderBy('sort_order')
-            ->orderBy('name');
+        $query->orderBy('sort_order')->orderBy('name');
     }
 
     public function scopeByTag($query, string $tag): void
@@ -159,28 +130,20 @@ class Product extends Model implements HasMedia
         $query->whereJsonContains('tags', $tag);
     }
 
-    public function scopeByBrand($query, string $brand): void
-    {
-        $query->where('brand', 'like', "%{$brand}%");
-    }
-
-    // ── Helpers ───────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────
 
     public function isOnSale(): bool
     {
         return ! is_null($this->compare_price)
-            && $this->compare_price > $this->price;
+            && (float) $this->compare_price > (float) $this->price;
     }
 
     public function discountPercentage(): int
     {
-        if (! $this->isOnSale()) {
-            return 0;
-        }
-
+        if (! $this->isOnSale()) return 0;
         return (int) round(
-            (($this->compare_price - $this->price)
-                / $this->compare_price) * 100
+            (((float) $this->compare_price - (float) $this->price)
+             / (float) $this->compare_price) * 100
         );
     }
 
@@ -193,8 +156,7 @@ class Product extends Model implements HasMedia
 
     public function isOutOfStock(): bool
     {
-        return $this->track_inventory
-            && $this->stock <= 0;
+        return $this->track_inventory && $this->stock <= 0;
     }
 
     public function getRouteKeyName(): string
@@ -202,26 +164,19 @@ class Product extends Model implements HasMedia
         return 'uuid';
     }
 
-    // ── Spatie Media Library ──────────────────────────────────
+    // ── Spatie Media Library ──────────────────────────────
 
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('product-images')
-            ->useDisk('public');
+        $this->addMediaCollection('product-images')->useDisk('public');
     }
 
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumb')
-            ->width(400)
-            ->height(400)
-            ->sharpen(5)
-            ->nonQueued();
+             ->width(400)->height(400)->sharpen(5)->nonQueued();
 
         $this->addMediaConversion('card')
-            ->width(800)
-            ->height(800)
-            ->sharpen(5)
-            ->nonQueued();
+             ->width(800)->height(800)->sharpen(5)->nonQueued();
     }
 }
