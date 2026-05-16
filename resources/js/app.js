@@ -76,8 +76,11 @@ window.toast = (() => {
 document.addEventListener('submit', async (e) => {
     const form = e.target.closest('[data-cart-form]');
     if (!form) return;
+    if (form.dataset.processing) return;
+
+form.dataset.processing = 'true';
     e.preventDefault();
-    e.stopPropagation();
+    e.stopImmediatePropagation();
 
     const btn = form.querySelector('[type=submit]');
     if (!btn || btn.disabled) return;
@@ -118,6 +121,8 @@ document.addEventListener('submit', async (e) => {
                 });
             }
 
+            delete form.dataset.processing;
+
             setTimeout(() => {
                 btn.innerHTML = original;
                 btn.classList.remove('bg-green-600', 'border-green-600');
@@ -125,12 +130,14 @@ document.addEventListener('submit', async (e) => {
             }, 1800);
         } else {
             window.toast.error(data.message ?? 'Could not add to cart');
+            delete form.dataset.processing;
             btn.innerHTML = original;
             btn.disabled  = false;
         }
     } catch (err) {
         console.error('Cart error:', err);
         window.toast.error('Something went wrong. Please try again.');
+        delete form.dataset.processing;
         btn.innerHTML = original;
         btn.disabled  = false;
     }
@@ -140,8 +147,13 @@ document.addEventListener('submit', async (e) => {
 document.addEventListener('submit', async (e) => {
     const form = e.target.closest('[data-wishlist-form]');
     if (!form) return;
-    e.preventDefault();
-    e.stopPropagation();
+
+if (form.dataset.processing) return;
+
+form.dataset.processing = 'true';
+
+e.preventDefault();
+e.stopImmediatePropagation();
 
     const btn = form.querySelector('button[type=submit]');
     if (btn) btn.disabled = true;
@@ -174,6 +186,7 @@ document.addEventListener('submit', async (e) => {
     } catch {
         window.toast.error('Something went wrong');
     } finally {
+        delete form.dataset.processing;
         if (btn) btn.disabled = false;
     }
 }, true);

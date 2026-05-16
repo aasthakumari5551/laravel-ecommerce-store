@@ -175,6 +175,7 @@
     </div>
 @endif
 
+@isset($delivery)
 {{-- Delivery estimate --}}
 <div class="bg-ink-50 rounded-xl p-4 mb-5 space-y-2.5 border border-ink-100">
     <div class="flex items-start gap-3">
@@ -212,6 +213,7 @@
         <p class="text-xs text-ink-500">30-day hassle-free returns & exchanges</p>
     </div>
 </div>
+@endisset
 
             {{-- ── STICKY ADD TO CART (desktop inline, mobile sticky bar) ── --}}
             @unless($product->isOutOfStock())

@@ -19,10 +19,10 @@ class ProductSeeder extends Seeder
         foreach ($this->products() as $data) {
             $catId = $cats[$data['category']] ?? array_values($cats)[0];
 
-            $slug = Str::slug($data['name']) . '-' . Str::random(4);
+            $slug = Str::slug($data['name']);
 
             Product::firstOrCreate(
-                ['slug' => $slug],
+    ['name' => $data['name']],
                 [
                     'uuid'              => (string) \Illuminate\Support\Str::uuid(),
                     'category_id'       => $catId,

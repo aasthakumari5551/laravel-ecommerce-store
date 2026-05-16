@@ -12,7 +12,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::get('/products/{uuid}',    [ApiProductController::class, 'show'])->name('products.show');
 
     // ── Authenticated endpoints ───────────────────────────
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['web', 'auth'])->group(function () {
         Route::get('/orders',         [ApiOrderController::class, 'index'])->name('orders.index');
         Route::get('/orders/{uuid}',  [ApiOrderController::class, 'show'])->name('orders.show');
     });

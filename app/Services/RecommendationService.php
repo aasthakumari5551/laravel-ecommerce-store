@@ -13,25 +13,40 @@ class RecommendationService
     // ── Recently viewed ───────────────────────────────────
 
     public function recordView(Product $product): void
-    {
-        $userId    = Auth::id();
-        $sessionId = session()->getId();
+{
+    $userId    = Auth::id();
+    $sessionId = session()->getId();
 
-        if ($userId) {
-            RecentlyViewed::updateOrInsert(
-                ['user_id' => $userId, 'product_id' => $product->id],
-                ['session_id' => $sessionId, 'viewed_at' => now()]
-            );
-        } else {
-            RecentlyViewed::updateOrInsert(
-                ['session_id' => $sessionId, 'product_id' => $product->id, 'user_id' => null],
-                ['viewed_at' => now()]
-            );
-        }
+    if ($userId) {
+        // Authenticated: upsert on user_id + product_id
+        \DB::table('recently_viewed')->upsert(
+            [
+                'user_id'    => $userId,
+                'session_id' => $sessionId,
+                'product_id' => $product->id,
+                'viewed_at'  => now(),
+            ],
+            ['user_id', 'product_id'],   // conflict columns
+            ['session_id', 'viewed_at'], // update columns
+        );
+    } else {
+        // Guest: delete old + insert (avoids NULL unique issue)
+        \DB::table('recently_viewed')
+            ->where('session_id', $sessionId)
+            ->where('product_id', $product->id)
+            ->whereNull('user_id')
+            ->delete();
 
-        // Keep only last 20 per user/session
-        $this->pruneOldViews($userId, $sessionId);
+        \DB::table('recently_viewed')->insert([
+            'user_id'    => null,
+            'session_id' => $sessionId,
+            'product_id' => $product->id,
+            'viewed_at'  => now(),
+        ]);
     }
+
+    $this->pruneOldViews($userId, $sessionId);
+}
 
     public function recentlyViewed(int $limit = 8): Collection
     {

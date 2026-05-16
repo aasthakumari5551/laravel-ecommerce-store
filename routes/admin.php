@@ -19,7 +19,12 @@ Route::prefix('admin')
          ->name('analytics.dashboard');
 
     // Products
-    Route::resource('products', AdminProductController::class);
+    Route::resource(
+    'products',
+    AdminProductController::class
+)->parameters([
+    'products' => 'product:uuid'
+]);
 
     // Orders
     Route::prefix('orders')->name('orders.')->group(function () {

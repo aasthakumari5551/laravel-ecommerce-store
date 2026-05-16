@@ -102,33 +102,36 @@ class DemoSeeder extends Seeder
 
                 $address = $user->addresses()->first();
 
-                $order = Order::create([
-                    'uuid'                => (string) Str::uuid(),
-                    'number'              => 'ORD-' . now()->format('Ymd') . '-'
-                                            . str_pad(($i * 10 + $j + 1), 4, '0', STR_PAD_LEFT),
-                    'user_id'             => $user->id,
-                    'shipping_first_name' => $address?->first_name ?? 'Demo',
-                    'shipping_last_name'  => $address?->last_name  ?? 'User',
-                    'shipping_phone'      => $address?->phone ?? '+91 9876543210',
-                    'shipping_line1'      => $address?->line1 ?? 'Demo Address',
-                    'shipping_city'       => $address?->city  ?? 'Mumbai',
-                    'shipping_state'      => $address?->state ?? 'Maharashtra',
-                    'shipping_pincode'    => $address?->pincode ?? '400001',
-                    'shipping_country'    => 'India',
-                    'subtotal'            => $subtotal,
-                    'shipping_amount'     => $shipping,
-                    'tax_amount'          => $tax,
-                    'total'               => $total,
-                    'status'              => $orderStatus,
-                    'payment_status'      => $payStatus,
-                    'payment_method'      => 'demo_gateway',
-                    'razorpay_order_id'   => 'demo_order_' . Str::random(14),
-                    'razorpay_payment_id' => $payStatus === PaymentStatus::Paid
-                        ? 'demo_pay_' . Str::random(14) : null,
-                    'paid_at'             => $payStatus === PaymentStatus::Paid ? now() : null,
-                    'created_at'          => now()->subDays(rand(1, 30)),
-                    'updated_at'          => now()->subDays(rand(0, 5)),
-                ]);
+                $order = new Order([
+    'uuid'                => (string) Str::uuid(),
+    'number'              => 'ORD-' . now()->format('Ymd') . '-'
+                            . str_pad(($i * 10 + $j + 1), 4, '0', STR_PAD_LEFT),
+    'user_id'             => $user->id,
+    'shipping_first_name' => $address?->first_name ?? 'Demo',
+    'shipping_last_name'  => $address?->last_name  ?? 'User',
+    'shipping_phone'      => $address?->phone ?? '+91 9876543210',
+    'shipping_line1'      => $address?->line1 ?? 'Demo Address',
+    'shipping_city'       => $address?->city  ?? 'Mumbai',
+    'shipping_state'      => $address?->state ?? 'Maharashtra',
+    'shipping_pincode'    => $address?->pincode ?? '400001',
+    'shipping_country'    => 'India',
+    'subtotal'            => $subtotal,
+    'shipping_amount'     => $shipping,
+    'tax_amount'          => $tax,
+    'total'               => $total,
+    'status'              => $orderStatus,
+    'payment_status'      => $payStatus,
+    'payment_method'      => 'demo_gateway',
+    'razorpay_order_id'   => 'demo_order_' . Str::random(14),
+    'razorpay_payment_id' => $payStatus === PaymentStatus::Paid
+        ? 'demo_pay_' . Str::random(14) : null,
+    'paid_at'             => $payStatus === PaymentStatus::Paid ? now() : null,
+]);
+
+$order->created_at = now()->subDays(rand(1, 30));
+$order->updated_at = now()->subDays(rand(0, 5));
+
+$order->save();
 
                 foreach ($items as $product) {
                     OrderItem::create([
@@ -148,7 +151,6 @@ class DemoSeeder extends Seeder
                     'comment'    => 'Demo order created.',
                     'changed_by' => null,
                     'created_at' => $order->created_at,
-                    'updated_at' => $order->created_at,
                 ]);
             }
         }

@@ -63,7 +63,10 @@ class WishlistService
 
     public function all(): Wishlist
     {
-        return $this->resolve()->load('products.primaryImage');
+        return $this->resolve()->load([
+    'products.primaryImage',
+    'items',
+]);
     }
 
     public function clear(): void

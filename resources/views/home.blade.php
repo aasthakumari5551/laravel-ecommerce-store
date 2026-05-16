@@ -107,7 +107,8 @@
 @endif
 
 {{-- Trending search chips --}}
-@if($trendingKeywords)
+@isset($trendingKeywords)
+@if(count($trendingKeywords) > 0)
 <div class="max-w-7xl mx-auto px-4 pb-2">
     <div class="flex flex-wrap items-center gap-2">
         <span class="text-xs text-ink-500 font-medium">🔥 Trending:</span>
@@ -122,8 +123,13 @@
     </div>
 </div>
 @endif
+@endisset
 
 {{-- Personalised section --}}
+@isset($forYou)
+
+@if($forYou['products']->isNotEmpty())
+
 <div class="max-w-7xl mx-auto px-4 py-4">
     <x-product-carousel
         :products="$forYou['products']"
@@ -135,6 +141,8 @@
         badge-color="purple"
     />
 </div>
+@endif
+@endisset
 
 {{-- ═══════════════════ CATEGORIES ═══════════════════ --}}
 @if($categories->isNotEmpty())

@@ -8,34 +8,75 @@ use Illuminate\Http\Request;
 
 class WishlistController extends Controller
 {
-    public function __construct(private WishlistService $wishlistService)
-    {
+    public function __construct(
+        private WishlistService $wishlistService
+    ) {
         $this->middleware('auth');
     }
 
     public function index()
     {
         $wishlist = $this->wishlistService->all();
-        return view('shop.wishlist.index', compact('wishlist'));
+
+        return view(
+            'shop.wishlist.index',
+            compact('wishlist')
+        );
     }
 
-    public function toggle(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
-{
-    $request->validate(['product_id' => ['required', 'integer', 'exists:products,id']]);
+    public function toggle(
+        Request $request
+    ): RedirectResponse|\Illuminate\Http\JsonResponse {
 
-    $added   = $this->wishlistService->toggle($request->product_id);
-    $message = $added ? 'Added to wishlist.' : 'Removed from wishlist.';
+        $request->validate([
+            'product_id' => [
+                'required',
+                'integer',
+                'exists:products,id',
+            ],
+        ]);
 
-    if ($request->wantsJson()) {
-        return response()->json(['added' => $added, 'message' => $message]);
+        $added = $this->wishlistService
+            ->toggle($request->product_id);
+
+        $message = $added
+            ? 'Added to wishlist.'
+            : 'Removed from wishlist.';
+
+        if ($request->wantsJson()) {
+
+            return response()->json([
+                'added'  => $added,
+                'message'=> $message,
+            ]);
+        }
+
+        return back()->with(
+            'success',
+            $message
+        );
     }
 
-    return back()->with('success', $message);
-}
+    public function destroy(
+        int $productId
+    ): RedirectResponse {
 
-    public function destroy(int $productId): RedirectResponse
+        $this->wishlistService
+            ->remove($productId);
+
+        return back()->with(
+            'success',
+            'Removed from wishlist.'
+        );
+    }
+
+    public function clear(): RedirectResponse
     {
-        $this->wishlistService->remove($productId);
-        return back()->with('success', 'Removed from wishlist.');
+        $this->wishlistService->clear();
+
+        return back()->with(
+            'success',
+            'Wishlist cleared.'
+        );
     }
 }

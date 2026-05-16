@@ -1,5 +1,19 @@
 @auth
-<div x-data="notificationCenter()" class="relative">
+@php
+    try {
+
+        $notifUnread = auth()
+            ->user()
+            ->unreadNotifications()
+            ->count();
+
+    } catch (\Exception $e) {
+
+        $notifUnread = 0;
+    }
+@endphp
+<div x-data="notificationCenter({{ $notifUnread ?? 0 }})"
+     class="relative">
 
     {{-- Bell --}}
     <button @click="toggle()" class="btn-ghost p-2.5 relative">
@@ -113,7 +127,7 @@ function notificationCenter() {
         open: false,
         loading: false,
         notifications: [],
-        unread: {{ auth()->user()->unreadNotifications()->count() }},
+        unread: {{ $notifUnread ?? 0 }},
 
         async toggle() {
             this.open = !this.open;
