@@ -224,7 +224,7 @@
             @if(count($active))
                 <div class="flex flex-wrap gap-2 mb-4">
                     @foreach($active as $key => $label)
-                        <a href="{{ request()->fullUrlWithoutParameter($key) }}"
+                        <a href="{{ request()->fullUrlWithoutQuery([$key]) }}"
                            class="inline-flex items-center gap-1.5 bg-brand-50 border border-brand-200
                                   text-brand-700 rounded-full px-3 py-1 text-xs font-medium
                                   hover:bg-brand-100 transition-colors">
@@ -305,7 +305,7 @@
                 <div class="mb-6">
                     <p class="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-3">Category</p>
                     <div class="flex flex-wrap gap-2">
-                        <a href="{{ request()->fullUrlWithoutParameter('category') }}"
+                        <a href="{{ request()->fullUrlWithoutQuery(['category']) }}"
                            class="px-4 py-2 rounded-full text-sm border transition-colors
                                   {{ !request('category') ? 'bg-brand-600 text-white border-brand-600' : 'border-ink-200 text-ink-600' }}">
                             All

@@ -4,7 +4,7 @@
 @section('content')
 
 {{-- ═══════════════════ HERO ═══════════════════ --}}
-<section class="relative overflow-hidden bg-ink-900 min-h-[520px] sm:min-h-[580px]
+<section class="relative overflow-hidden bg-ink-900 min-h-[420px] sm:min-h-[520px]
                 flex items-center">
     <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div class="absolute inset-0"
@@ -149,7 +149,7 @@
 <section class="max-w-7xl mx-auto px-4 py-4 sm:py-8">
     <x-section-header title="Shop by Category"
                       subtitle="Browse our curated collections" />
-    <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         @foreach($categories->take(6) as $i => $cat)
             <a href="{{ route('shop.products.index', ['category' => $cat->slug]) }}"
                class="group flex flex-col items-center gap-2.5 p-3 sm:p-4

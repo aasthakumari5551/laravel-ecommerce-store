@@ -1,7 +1,9 @@
 @props(['product'])
 
 @php
-    $image      = $product->primaryImage?->url ?? null;
+$image = $product->getFirstMediaUrl('product-images')
+    ?: $product->primaryImage?->url
+    ?: null;
     $onSale     = $product->isOnSale();
     $outOfStock = $product->isOutOfStock();
     $name       = e($product->name);
@@ -10,9 +12,9 @@
 @endphp
 
 <article
-    class="group relative bg-white rounded-2xl border border-ink-100
-           overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300
-           w-[260px] min-w-[260px] flex-shrink-0 flex flex-col"
+class="group relative bg-white rounded-2xl border border-ink-100/80
+       overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300
+       w-full h-full flex flex-col"
     aria-label="{{ $name }}"
 >
 
@@ -275,7 +277,7 @@
                     detail: {
                         uuid: '{{ $product->uuid }}',
                         name: '{{ addslashes($product->name) }}',
-                        image: '{{ $product->primaryImage?->url ?? '' }}'
+                        image: '{{ $product->getFirstMediaUrl('products-images') ?? '' }}'
                     }
                 }))"
                 class="text-xs text-ink-500 hover:text-brand-600
