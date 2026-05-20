@@ -162,15 +162,14 @@ class SearchService
     public function trendingKeywords(int $limit = 8): array
     {
         return cache()->remember('trending_keywords', now()->addHour(), function () use ($limit) {
-            $fromOrders = DB::table('order_items')
-                ->join('products', 'products.id', '=', 'order_items.product_id')
-                ->whereNotNull('products.brand')
-                ->select('products.brand as term', DB::raw('COUNT(*) as freq'))
-                ->groupBy('products.brand')
-                ->orderByDesc('freq')
-                ->limit($limit)
-                ->pluck('term')
-                ->toArray();
+            $fromOrders = Product::query()
+    ->whereNotNull('products.brand')
+    ->selectRaw('products.brand, COUNT(*) as freq')
+    ->groupBy('products.brand')
+    ->orderByDesc('freq')
+    ->limit($limit)
+    ->pluck('brand')
+    ->toArray();
 
             $fallback = ['Smartphones', 'Running Shoes', 'Skincare', 'Laptops',
                          'Headphones', 'Kurta', 'Watches', 'Yoga Mat'];
